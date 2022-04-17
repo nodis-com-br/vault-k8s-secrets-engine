@@ -1,0 +1,33 @@
+name: go-application
+
+on:
+  workflow_dispatch: ~
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  build_metadata:
+    uses: nodis-com-br/gha_workflow-jobs/.github/workflows/build_metadata.yaml@master
+  analyze_code:
+    uses: nodis-com-br/gha_workflow-jobs/.github/workflows/analize_code.yaml@master
+    needs:
+      - build_metadata
+    secrets:
+      pypi_addr: ${{ secrets.PYPI_ADDR }}
+  build_artifact:
+    uses: nodis-com-br/gha_workflow-jobs/.github/workflows/publish_go_application.yaml@master
+    needs:
+      - build_metadata
+  revert_bump:
+    uses: nodis-com-br/gha_workflow-jobs/.github/workflows/revert_bump.yaml@master
+    needs:
+      - build_artifact
+    if: always()
+    with:
+      build_result: ${{ needs.build_artifact.result }}
