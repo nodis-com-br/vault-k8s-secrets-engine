@@ -97,12 +97,15 @@ func (b *backend) createSecret(ctx context.Context, s logical.Storage, saType st
 	var crb *ClusterRoleBindingDetails
 	var rb *RoleBindingDetails
 	var bindingName string
+	var bindingKind string
 
 	if scope == "cluster" {
 		crb, err = b.kubernetesService.CreateClusterRoleBinding(pluginConfig, namespace, sa.Name, roleName)
+		bindingKind = "clusterrolebinding"
 		bindingName = crb.Name
 	} else {
 		rb, err = b.kubernetesService.CreateRoleBinding(pluginConfig, namespace, sa.Name, roleName)
+		bindingKind = "rolebinding"
 		bindingName = rb.Name
 	}
 
@@ -112,7 +115,7 @@ func (b *backend) createSecret(ctx context.Context, s logical.Storage, saType st
 		return nil, err
 	}
 
-	b.Logger().Info(fmt.Sprintf("Service account '%s' created with rolebinding '%s'", sa.Name, rb.Name))
+	b.Logger().Info(fmt.Sprintf("Service account '%s' created with '%s' '%s'", sa.Name, bindingKind, bindingName))
 
 	dur, err := time.ParseDuration(fmt.Sprintf("%ds", ttl))
 	if err != nil {
