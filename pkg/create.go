@@ -41,6 +41,10 @@ func secret(b *backend) *framework.Secret {
 				Type:        framework.TypeString,
 				Description: "Name of the newly created role binding",
 			},
+			keyRoleBindingScope: &framework.FieldSchema{
+				Type:        framework.TypeString,
+				Description: "Scope of the newly created role binding",
+			},
 		},
 		Revoke: b.revokeSecret,
 	}
