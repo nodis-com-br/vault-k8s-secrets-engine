@@ -1,8 +1,8 @@
-package nodis
+package vault_k8s_secrets_engine
 
 import (
+	"encoding/json"
 	"fmt"
-
 	v1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,11 +11,9 @@ import (
 )
 
 const serviceAccountNamePrefix = "vault-sa-"
-const roleNamePrefix = "vault-r-"
+const clusterRoleNamePrefix = "vault-cr-"
 const roleBindingNamePrefix = "vault-rb-"
-
-const serviceAccountKind = "ServiceAccount"
-const roleKind = "Role"
+const clusterRoleBindingNamePrefix = "vault-crb-"
 
 // KubernetesService is an empty struct to wrap the Kubernetes service functions
 type KubernetesService struct{}
@@ -51,41 +49,37 @@ func (k *KubernetesService) CreateServiceAccount(pluginConfig *PluginConfig, nam
 	}, nil
 }
 
-// GetServiceAccountSecret retrieves the secrets for a newly created service account
-func (k *KubernetesService) GetServiceAccountSecret(pluginConfig *PluginConfig, sa *ServiceAccountDetails) ([]*ServiceAccountSecret, error) {
+// CreateServiceAccountSecret retrieves the secrets for a newly created service account
+func (k *KubernetesService) CreateServiceAccountSecret(pluginConfig *PluginConfig, sa *ServiceAccountDetails) (*ServiceAccountSecret, error) {
 	clientSet, err := getClientSet(pluginConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	ksa, err := clientSet.CoreV1().ServiceAccounts(sa.Namespace).Get(sa.Name, metav1.GetOptions{})
+	secretObj := v1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: sa.Name + "-token",
+			Namespace:    sa.Namespace,
+			Annotations: map[string]string{
+				"kubernetes.io/service-account.name": sa.Name,
+			},
+		},
+		Type: "kubernetes.io/service-account-token",
+	}
+	secretCreated, err := clientSet.CoreV1().Secrets(sa.Namespace).Create(&secretObj)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var secrets []*ServiceAccountSecret
-	for _, secret := range ksa.Secrets {
-		secretName := secret.Name
-		token, err := clientSet.CoreV1().Secrets(sa.Namespace).Get(secretName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		if token != nil {
-			caCert := string(token.Data["ca.crt"])
-			tokenNamespace := string(token.Data["namespace"])
-			tokenValue := string(token.Data["token"])
-			secretValue := ServiceAccountSecret{
-				CACert:    caCert,
-				Namespace: tokenNamespace,
-				Token:     tokenValue,
-			}
-			secrets = append(secrets, &secretValue)
-		}
+	s := &ServiceAccountSecret{
+		CACert:    string(secretCreated.Data["ca.crt"]),
+		Namespace: string(secretCreated.Data["namespace"]),
+		Token:     string(secretCreated.Data["token"]),
 	}
 
-	return secrets, nil
+	return s, nil
 }
 
 // DeleteServiceAccount removes a services account from the Kubernetes server
@@ -101,17 +95,71 @@ func (k *KubernetesService) DeleteServiceAccount(pluginConfig *PluginConfig, nam
 	return nil
 }
 
-// CreateRoleBinding creates a new rolebinding for a service account in a specific namespace
-func (k *KubernetesService) CreateRoleBinding(pluginConfig *PluginConfig, namespace string, serviceAccountName string, roleName string) (*RoleBindingDetails, error) {
+// DeleteServiceAccountSecret removes a services account from the Kubernetes server
+func (k *KubernetesService) DeleteServiceAccountSecret(pluginConfig *PluginConfig, namespace string, serviceAccountName string) error {
+	clientSet, err := getClientSet(pluginConfig)
+	if err != nil {
+		return err
+	}
+	err = clientSet.CoreV1().Secrets(namespace).Delete(serviceAccountName+"-token", nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateClusterRole creates a new cluster role
+func (k *KubernetesService) CreateClusterRole(pluginConfig *PluginConfig, rules string) (*ClusterRoleDetails, error) {
 	clientSet, err := getClientSet(pluginConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	policyRules := make([]rbac.PolicyRule, 0)
+	_ = json.Unmarshal([]byte(rules), &policyRules)
+
+	cr := rbac.ClusterRole{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: clusterRoleNamePrefix,
+		},
+		Rules: policyRules,
+	}
+	crr, err := clientSet.RbacV1().ClusterRoles().Create(&cr)
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterRoleDetails{
+		UID:  fmt.Sprintf("%s", crr.UID),
+		Name: crr.Name,
+	}, nil
+}
+
+// DeleteClusterRole removes an existing cluster role
+func (k *KubernetesService) DeleteClusterRole(pluginConfig *PluginConfig, clusterRoleName string) error {
+	clientSet, err := getClientSet(pluginConfig)
+	if err != nil {
+		return err
+	}
+	err = clientSet.RbacV1().ClusterRoles().Delete(clusterRoleName, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateRoleBinding creates a new rolebinding for a service account in a specific namespace
+func (k *KubernetesService) CreateRoleBinding(pluginConfig *PluginConfig, serviceAccountName string, serviceAccountNamespace string, namespace string, clusterRoleName string) (*RoleBindingDetails, error) {
+	clientSet, err := getClientSet(pluginConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	subjects := []rbac.Subject{
 		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
-			Namespace: namespace,
+			Namespace: serviceAccountNamespace,
 		},
 	}
 
@@ -124,7 +172,7 @@ func (k *KubernetesService) CreateRoleBinding(pluginConfig *PluginConfig, namesp
 		Subjects: subjects,
 		RoleRef: rbac.RoleRef{
 			Kind: "ClusterRole",
-			Name: roleName,
+			Name: clusterRoleName,
 		},
 	}
 
@@ -140,7 +188,7 @@ func (k *KubernetesService) CreateRoleBinding(pluginConfig *PluginConfig, namesp
 }
 
 // CreateClusterRoleBinding creates a new clusterrolebinding for a service account
-func (k *KubernetesService) CreateClusterRoleBinding(pluginConfig *PluginConfig, namespace string, serviceAccountName string, roleName string) (*ClusterRoleBindingDetails, error) {
+func (k *KubernetesService) CreateClusterRoleBinding(pluginConfig *PluginConfig, serviceAccountNamespace string, serviceAccountName string, clusterRoleName string) (*ClusterRoleBindingDetails, error) {
 	clientSet, err := getClientSet(pluginConfig)
 	if err != nil {
 		return nil, err
@@ -149,19 +197,19 @@ func (k *KubernetesService) CreateClusterRoleBinding(pluginConfig *PluginConfig,
 		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
-			Namespace: namespace,
+			Namespace: serviceAccountNamespace,
 		},
 	}
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: roleBindingNamePrefix,
+			GenerateName: clusterRoleBindingNamePrefix,
 		},
 		Subjects: subjects,
 		RoleRef: rbac.RoleRef{
 			Kind: "ClusterRole",
-			Name: roleName,
+			Name: clusterRoleName,
 		},
 	}
 
@@ -188,7 +236,7 @@ func (k *KubernetesService) DeleteRoleBinding(pluginConfig *PluginConfig, namesp
 	return nil
 }
 
-// DeleteClusterRoleBinding removes an existing role binding
+// DeleteClusterRoleBinding removes an existing cluster role binding
 func (k *KubernetesService) DeleteClusterRoleBinding(pluginConfig *PluginConfig, clusterRoleBindingName string) error {
 	clientSet, err := getClientSet(pluginConfig)
 	if err != nil {
@@ -205,7 +253,8 @@ func (k *KubernetesService) DeleteClusterRoleBinding(pluginConfig *PluginConfig,
 func getClientSet(pluginConfig *PluginConfig) (*kubernetes.Clientset, error) {
 
 	tlsConfig := rest.TLSClientConfig{
-		CAData: []byte(pluginConfig.CACert),
+		Insecure: true,
+		//CAData:   []byte(pluginConfig.CACert),
 	}
 
 	conf := &rest.Config{

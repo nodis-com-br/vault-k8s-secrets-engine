@@ -1,6 +1,6 @@
-module github.com/nodis-com-br/kp_kubernetes-secret-engine
+module github.com/nodis-com-br/vault-k8s-secrets-engine
 
-go 1.15
+go 1.13
 
 require (
 	github.com/hashicorp/errwrap v1.0.0

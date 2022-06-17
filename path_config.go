@@ -1,4 +1,4 @@
-package nodis
+package vault_k8s_secrets_engine
 
 import (
 	"context"
@@ -10,57 +10,28 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-const keyMaxTTL = "max_ttl"
-const keyAdminRole = "admin_role"
-const keyEditorRole = "editor_role"
-const keyViewerRole = "viewer_role"
-const keyJWT = "jwt"
-const keyCACert = "ca_cert"
-const keyHost = "host"
-const keyDefaultTTL = "ttl"
-
-const configPath = "config"
-
 // PluginConfig contains all the configuration for the plugin
 type PluginConfig struct {
 	MaxTTL            int    `json:"max_ttl"`
-	DefaulTTL         int    `json:"ttl"`
-	AdminRole         string `json:"admin_role"`
-	EditorRole        string `json:"editor_role"`
-	ViewerRole        string `json:"viewer_role"`
+	DefaultTTL        int    `json:"ttl"`
 	ServiceAccountJWT string `json:"jwt"`
 	CACert            string `json:"ca_cert"`
 	Host              string `json:"host"`
 }
 
-func configurePlugin(b *backend) *framework.Path {
+func pathConfig(b *backend) *framework.Path {
 	return &framework.Path{
-		Pattern: "config",
+		Pattern: configPath,
 		Fields: map[string]*framework.FieldSchema{
 			keyMaxTTL: {
 				Type:        framework.TypeDurationSecond,
 				Description: "Time to live for the credentials returned. If not set or set to 0, will use system default.",
-				Default:     "1h",
+				Default:     "0",
 			},
-			keyDefaultTTL: {
+			keyTTL: {
 				Type:        framework.TypeDurationSecond,
-				Description: "Deafult time to live for when a user does not provide a TTL. If not set or set to 0, will use system default.",
-				Default:     "10m",
-			},
-			keyAdminRole: {
-				Type:        framework.TypeString,
-				Description: "Name of Kubernetes Admin ClusterRole that can be assigned to service accounts created by this plugin.",
-				Required:    true,
-			},
-			keyEditorRole: {
-				Type:        framework.TypeString,
-				Description: "Name of Kubernetes Editor ClusterRole that can be assigned to service accounts created by this plugin.",
-				Required:    true,
-			},
-			keyViewerRole: {
-				Type:        framework.TypeString,
-				Description: "Name of Kubernetes Viewer ClusterRole that can be assigned to service accounts created by this plugin.",
-				Required:    true,
+				Description: "Default time to live for when a user does not provide a TTL. If not set or set to 0, will use system default.",
+				Default:     "0",
 			},
 			keyJWT: {
 				Type:        framework.TypeString,
@@ -74,7 +45,7 @@ func configurePlugin(b *backend) *framework.Path {
 			},
 			keyHost: {
 				Type:        framework.TypeString,
-				Description: "URL for kubernetes cluster for vault to use to comunicate to k8s. https://{url}:{port}",
+				Description: "URL for kubernetes cluster for vault to use to communicate to. [https://{url}:{port}]",
 				Required:    true,
 			},
 		},
@@ -85,7 +56,7 @@ func configurePlugin(b *backend) *framework.Path {
 			},
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback: b.handleConfigWrite,
-				Summary:  "Configure the plugin",
+				Summary:  "Update plugin configuration",
 			},
 			logical.ReadOperation: &framework.PathOperation{
 				Callback: b.handleConfigRead,
@@ -99,10 +70,7 @@ func (b *backend) handleConfigWrite(ctx context.Context, req *logical.Request, d
 
 	config := PluginConfig{
 		MaxTTL:            d.Get(keyMaxTTL).(int),
-		DefaulTTL:         d.Get(keyDefaultTTL).(int),
-		AdminRole:         d.Get(keyAdminRole).(string),
-		EditorRole:        d.Get(keyEditorRole).(string),
-		ViewerRole:        d.Get(keyViewerRole).(string),
+		DefaultTTL:        d.Get(keyTTL).(int),
 		ServiceAccountJWT: d.Get(keyJWT).(string),
 		CACert:            d.Get(keyCACert).(string),
 		Host:              d.Get(keyHost).(string),
@@ -133,14 +101,11 @@ func (b *backend) handleConfigRead(ctx context.Context, req *logical.Request, d 
 
 		resp := &logical.Response{
 			Data: map[string]interface{}{
-				keyMaxTTL:     config.MaxTTL,
-				keyDefaultTTL: config.DefaulTTL,
-				keyAdminRole:  config.AdminRole,
-				keyEditorRole: config.EditorRole,
-				keyViewerRole: config.ViewerRole,
-				keyJWT:        config.ServiceAccountJWT,
-				keyCACert:     config.CACert,
-				keyHost:       config.Host,
+				keyMaxTTL: config.MaxTTL,
+				keyTTL:    config.DefaultTTL,
+				keyJWT:    config.ServiceAccountJWT,
+				keyCACert: config.CACert,
+				keyHost:   config.Host,
 			},
 		}
 		return resp, nil
@@ -169,18 +134,6 @@ func (c *PluginConfig) Validate() error {
 	_, err := url.Parse(c.Host)
 	if err != nil {
 		return fmt.Errorf("Host '%s' not a valid host: %s", c.Host, err)
-	}
-
-	if c.AdminRole == "" {
-		return fmt.Errorf("%s can not be empty", keyAdminRole)
-	}
-
-	if c.EditorRole == "" {
-		return fmt.Errorf("%s can not be empty", keyEditorRole)
-	}
-
-	if c.ViewerRole == "" {
-		return fmt.Errorf("%s can not be empty", keyViewerRole)
 	}
 
 	if c.ServiceAccountJWT == "" {
