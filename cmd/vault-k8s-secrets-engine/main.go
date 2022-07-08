@@ -1,18 +1,20 @@
 package main
 
 import (
+	"os"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
-	secretsengine "github.com/nodis-com-br/vault-k8s-secrets-engine/pkg"
-	"os"
+
+	secretsengine "github.com/nodis-com-br/vault-k8s-secrets-engine"
 )
 
 func main() {
 
 	apiClientMeta := &api.PluginAPIClientMeta{}
 	flags := apiClientMeta.FlagSet()
-	flags.Parse(os.Args[1:])
+	_ = flags.Parse(os.Args[1:])
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
