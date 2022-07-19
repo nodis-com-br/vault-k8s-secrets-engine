@@ -1,23 +1,26 @@
 package main
 
 import (
+	"os"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
-	nodis "github.com/nodis-com-br/kp_kubernetes-secret-engine/pkg"
-	"os"
+
+	secretsengine "github.com/nodis-com-br/vault-k8s-secrets-engine/pkg"
 )
 
 func main() {
+
 	apiClientMeta := &api.PluginAPIClientMeta{}
 	flags := apiClientMeta.FlagSet()
-	flags.Parse(os.Args[1:])
+	_ = flags.Parse(os.Args[1:])
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
 
 	err := plugin.Serve(&plugin.ServeOpts{
-		BackendFactoryFunc: nodis.K8sServiceAccountFactory,
+		BackendFactoryFunc: secretsengine.Factory,
 		TLSProviderFunc:    tlsProviderFunc,
 	})
 	if err != nil {
@@ -26,4 +29,5 @@ func main() {
 		logger.Error("plugin shutting down", "error", err)
 		os.Exit(1)
 	}
+
 }
