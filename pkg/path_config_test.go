@@ -2,44 +2,46 @@ package secretsengine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig(t *testing.T) {
+
 	b, reqStorage, ctx := getTestBackend(t)
 
 	t.Run("read empty config", func(t *testing.T) {
 		_, err := testStorageRead(ctx, b, reqStorage, configPath, nil, nil)
-		assert.Error(t, err)
+		assert.EqualError(t, err, emptyConfiguration)
 	})
 
 	t.Run("create config with missing credentials", func(t *testing.T) {
 		_, err := testStorageCreate(ctx, b, reqStorage, configPath, map[string]interface{}{
-			keyHost:   "https://localhost:443",
+			keyHost:   "https://passargada:443",
 			keyCACert: `CA CERTIFICATE`,
 		})
-		assert.Error(t, err)
+		assert.EqualError(t, err, missingCredentials)
 	})
 
-	t.Run("create config with too much credentials", func(t *testing.T) {
+	t.Run("create config with too many credentials", func(t *testing.T) {
 		_, err := testStorageCreate(ctx, b, reqStorage, configPath, map[string]interface{}{
-			keyHost:       "https://localhost:443",
-			keyCACert:     `CA CERTIFICATE`,
-			keyClientCert: clientCert,
-			keyClientKey:  clientKey,
+			keyHost:       "https://lapucia:8443",
+			keyCACert:     "CA CERTIFICATE",
+			keyClientCert: "CLIENT CERT",
+			keyClientKey:  "CLIENT KEY",
 			keyToken:      "TOKEN",
 		})
-		assert.Error(t, err)
+		assert.EqualError(t, err, tooManyCredentials)
 	})
 
 	t.Run("create config missing ca certificate", func(t *testing.T) {
 		_, err := testStorageCreate(ctx, b, reqStorage, configPath, map[string]interface{}{
 			keyHost:       "https://localhost:443",
-			keyClientCert: clientCert,
-			keyClientKey:  clientKey,
+			keyClientCert: "CLIENT CERT",
+			keyClientKey:  "CLIENT KEY",
 		})
-		assert.Error(t, err)
+		assert.EqualError(t, err, missingCACert)
 	})
 
 	t.Run("create config", func(t *testing.T) {
@@ -52,8 +54,8 @@ func TestConfig(t *testing.T) {
 			keyHost:                    configs[0][keyHost],
 			keyCACert:                  configs[0][keyCACert],
 			keyClientCert:              configs[0][keyClientCert],
-			keyDefaultMaxTTL:           configs[0][keyDefaultMaxTTL],
-			keyDefaultTTL:              configs[0][keyDefaultTTL],
+			keyDefaultMaxTTL:           configs[0][keyDefaultMaxTTL].(time.Duration) / time.Second,
+			keyDefaultTTL:              configs[0][keyDefaultTTL].(time.Duration) / time.Second,
 			keyDefaultServiceAccountNs: defaultServiceAccountNs,
 		})
 		assert.NoError(t, err)
@@ -69,8 +71,8 @@ func TestConfig(t *testing.T) {
 			keyHost:                    configs[1][keyHost],
 			keyCACert:                  configs[1][keyCACert],
 			keyClientCert:              configs[1][keyClientCert],
-			keyDefaultMaxTTL:           configs[1][keyDefaultMaxTTL],
-			keyDefaultTTL:              configs[1][keyDefaultTTL],
+			keyDefaultMaxTTL:           configs[1][keyDefaultMaxTTL].(time.Duration) / time.Second,
+			keyDefaultTTL:              configs[1][keyDefaultTTL].(time.Duration) / time.Second,
 			keyDefaultServiceAccountNs: defaultServiceAccountNs,
 		})
 		assert.NoError(t, err)

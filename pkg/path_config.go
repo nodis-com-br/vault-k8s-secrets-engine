@@ -12,29 +12,29 @@ import (
 
 // Config contains all the configuration for the plugin
 type Config struct {
-	Token              string        `json:"token"`
-	ClientCert         string        `json:"client_cert"`
-	ClientKey          string        `json:"client_key"`
-	CACert             string        `json:"ca_cert"`
-	Host               string        `json:"host"`
-	DefaultSANamespace string        `json:"default_sa_namespace"`
-	DefaultTTL         time.Duration `json:"default_ttl"`
-	DefaultMaxTTL      time.Duration `json:"default_max_ttl"`
+	Token                          string        `json:"token"`
+	ClientCert                     string        `json:"client_cert"`
+	ClientKey                      string        `json:"client_key"`
+	CACert                         string        `json:"ca_cert"`
+	Host                           string        `json:"host"`
+	DefaultServiceAccountNamespace string        `json:"default_sa_namespace"`
+	DefaultTTL                     time.Duration `json:"default_ttl"`
+	DefaultMaxTTL                  time.Duration `json:"default_max_ttl"`
 }
 
 // Validate validates the plugin config by checking all required values are correct
 func (c *Config) Validate() error {
 
 	if c.Token == "" && c.ClientCert == "" && c.ClientKey == "" {
-		return fmt.Errorf("no credentials provided")
+		return fmt.Errorf(missingCredentials)
 	}
 
 	if c.Token != "" && (c.ClientCert != "" || c.ClientKey != "") {
-		return fmt.Errorf("either token or certificates must be provided")
+		return fmt.Errorf(tooManyCredentials)
 	}
 
 	if c.CACert == "" {
-		return fmt.Errorf("%s can not be empty", keyCACert)
+		return fmt.Errorf(missingCACert)
 	}
 
 	return nil
@@ -105,17 +105,18 @@ func pathConfig(b *backend) *framework.Path {
 	}
 }
 
+// pathConfigWrite saves the configuration on the storage backend
 func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 
 	config := Config{
-		Token:              d.Get(keyToken).(string),
-		ClientCert:         d.Get(keyClientCert).(string),
-		ClientKey:          d.Get(keyClientKey).(string),
-		CACert:             d.Get(keyCACert).(string),
-		Host:               d.Get(keyHost).(string),
-		DefaultSANamespace: d.Get(keyDefaultServiceAccountNs).(string),
-		DefaultTTL:         time.Duration(d.Get(keyDefaultTTL).(int)) * time.Second,
-		DefaultMaxTTL:      time.Duration(d.Get(keyDefaultMaxTTL).(int)) * time.Second,
+		Token:                          d.Get(keyToken).(string),
+		ClientCert:                     d.Get(keyClientCert).(string),
+		ClientKey:                      d.Get(keyClientKey).(string),
+		CACert:                         d.Get(keyCACert).(string),
+		Host:                           d.Get(keyHost).(string),
+		DefaultServiceAccountNamespace: d.Get(keyDefaultServiceAccountNs).(string),
+		DefaultTTL:                     time.Duration(d.Get(keyDefaultTTL).(int)) * time.Second,
+		DefaultMaxTTL:                  time.Duration(d.Get(keyDefaultMaxTTL).(int)) * time.Second,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -129,6 +130,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 	return nil, nil
 }
 
+// pathConfigRead retrieves the configuration on the storage backend
 func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	if config, err := getConfig(ctx, req.Storage); err != nil {
 		return nil, err
@@ -140,13 +142,14 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *f
 				keyCACert:                  config.CACert,
 				keyClientCert:              config.ClientCert,
 				keyHost:                    config.Host,
-				keyDefaultServiceAccountNs: config.DefaultSANamespace,
+				keyDefaultServiceAccountNs: config.DefaultServiceAccountNamespace,
 			},
 		}
 		return resp, nil
 	}
 }
 
+// pathConfigDelete removes the configuration on the storage backend
 func (b *backend) pathConfigDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	if err := req.Storage.Delete(ctx, configPath); err != nil {
 		return nil, err
@@ -162,7 +165,7 @@ func getConfig(ctx context.Context, s logical.Storage) (*Config, error) {
 		return nil, err
 	}
 	if raw == nil {
-		return nil, fmt.Errorf("configuration is empty")
+		return nil, fmt.Errorf(emptyConfiguration)
 	}
 	conf := &Config{}
 	_ = json.Unmarshal(raw.Value, conf)

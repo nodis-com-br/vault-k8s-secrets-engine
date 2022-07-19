@@ -20,6 +20,7 @@ vault plugin register -sha256="$(sha256sum dist/vault-k8s-secrets-engine | cut -
 vault plugin info secret kubernetes
 vault secrets enable kubernetes
 kubectl config use kind-kind
+kubectl delete -R -f manifests/ || true
 kubectl apply -R -f manifests/
 
 KIND_HOST=$(kind get kubeconfig | grep server | awk -F" " '{print $2}')
@@ -32,45 +33,45 @@ KIND_CA_CERT=$(kind get kubeconfig | grep certificate-authority-data | awk -F" "
 KIND_TOKEN=$(kubectl get secret vault-secrets-backend-secret -n kube-system -o jsonpath="{.data.token}" | base64 -d)
 vault write kubernetes/config host="${KIND_HOST}" token="${KIND_TOKEN}" ca_cert="${KIND_CA_CERT}"
 
-vault read kubernetes/config
+#vault read kubernetes/config
 
 vault write -force kubernetes/rotate-root
 
-#RULELIST01=$(cat <<EOF
-#[
-#  {
-#    "namespaces": ["*"],
-#    "cluster_roles": ["cluster-admin"]
-#  }
-#]
-#EOF
-#)
-#
-#RULELIST02=$(cat <<EOF
-#[
-#  {
-#    "namespaces": ["default"],
-#    "cluster_roles": ["cluster-admin"]
-#  },
-#  {
-#    "namespaces": ["*"],
-#    "cluster_roles": ["view"]
-#  }
-#]
-#EOF
-#)
-#
-#vault write kubernetes/role/admin binding_rules="${RULELIST01}"
+RULELIST01=$(cat <<EOF
+[
+  {
+    "namespaces": ["*"],
+    "cluster_roles": ["cluster-admin"]
+  }
+]
+EOF
+)
+
+RULELIST02=$(cat <<EOF
+[
+  {
+    "namespaces": ["default"],
+    "cluster_roles": ["cluster-admin"]
+  },
+  {
+    "namespaces": ["*"],
+    "cluster_roles": ["view"]
+  }
+]
+EOF
+)
+
+vault write kubernetes/role/admin binding_rules="${RULELIST01}"
 #vault read kubernetes/role/admin
-#vault write kubernetes/role/developer binding_rules="${RULELIST02}" view_nodes=true credentials_type=certificate
+vault write kubernetes/role/developer binding_rules="${RULELIST02}" view_nodes=true credentials_type=certificate
 #vault read kubernetes/role/developer
-#vault list kubernetes/role
-#
-#
-#SECRET=$(vault read -format=json kubernetes/creds/developer ttl=600)
-##echo "${SECRET}" | jq -r 'del(.data)'
-##echo "${SECRET}" | jq -r .data.user_cert | base64 -d | openssl x509 -text
-#echo "${SECRET}" | jq -r .data.kube_config > kubeconfig
+vault list kubernetes/role
+
+
+SECRET=$(vault read -format=json kubernetes/creds/developer ttl=5)
+#echo "${SECRET}" | jq -r 'del(.data)'
+#echo "${SECRET}" | jq -r .data.user_cert | base64 -d | openssl x509 -text
+echo "${SECRET}" | jq -r .data.kube_config > kubeconfig
 
 
 while true; do

@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/plugin"
 
-	secretsengine "github.com/nodis-com-br/vault-k8s-secrets-engine"
+	secretsengine "github.com/nodis-com-br/vault-k8s-secrets-engine/pkg"
 )
 
 func main() {

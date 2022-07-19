@@ -3,6 +3,7 @@ module github.com/nodis-com-br/vault-k8s-secrets-engine
 go 1.18
 
 require (
+	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/hashicorp/go-hclog v0.15.0
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13

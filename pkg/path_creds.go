@@ -2,10 +2,8 @@ package secretsengine
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,22 +11,26 @@ import (
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-
-	"github.com/sony/sonyflake"
 )
 
-type Secret struct {
-	ServiceAccount       *corev1.ServiceAccount
-	ServiceAccountSecret *corev1.Secret
-	UserCertificate      *UserCertificate
-	Host                 string `json:"host"`
-	CACert               string `json:"ca_cert"`
-	KubeConfig           string `json:"kube_config"`
-	ClusterRoles         string `json:"clusterroles"`
-	RoleBindings         string `json:"rolebindings"`
-	ClusterRoleBindings  string `json:"clusterrolebindings"`
+// Credentials contains all the configuration of the
+// generated credentials
+type Credentials struct {
+	// External data
+	Secret          *corev1.Secret
+	UserCertificate *UserCertificate
+	Host            string `json:"host"`
+	CACert          string `json:"ca_cert"`
+	KubeConfig      string `json:"kube_config"`
+	// Internal data
+	ServiceAccount      string `json:"serviceaccount"`
+	ClusterRoles        string `json:"clusterroles"`
+	RoleBindings        string `json:"rolebindings"`
+	ClusterRoleBindings string `json:"clusterrolebindings"`
 }
 
+// UserCertificate stores the certificate and
+// private key for x509 authentication
 type UserCertificate struct {
 	Username    string `json:"username"`
 	Certificate string `json:"certificate"`
@@ -58,6 +60,8 @@ func pathCredentials(b *backend) *framework.Path {
 	}
 }
 
+// pathCredentialsRead retrieves the role configuration
+// and generate new credentials
 func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 
 	var secretToken string
@@ -75,32 +79,31 @@ func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
 		role.TTL = time.Duration(credentialsTTL.(int)) * time.Second
 	}
 
-	s, err := createSecret(ctx, b, req, role)
+	creds, err := createCredentials(ctx, b, req, role)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.ServiceAccount != nil {
-		secretToken = string(s.ServiceAccountSecret.Data["token"])
-	} else if s.UserCertificate != nil {
-		userCertificate = s.UserCertificate.Certificate
-		userKey = s.UserCertificate.PrivateKey
+	if creds.Secret != nil {
+		secretToken = string(creds.Secret.Data[keySecretToken])
 	}
-
-	serviceAccount, _ := json.Marshal(s.ServiceAccount)
+	if creds.UserCertificate != nil {
+		userCertificate = creds.UserCertificate.Certificate
+		userKey = creds.UserCertificate.PrivateKey
+	}
 
 	resp := b.Secret(secretType).Response(map[string]interface{}{
 		keySecretToken:    secretToken,
 		keySecretUserCert: userCertificate,
 		keySecretUserKey:  userKey,
-		keySecretHost:     s.Host,
-		keySecretCACert:   s.CACert,
-		keyKubeConfig:     s.KubeConfig,
+		keySecretHost:     creds.Host,
+		keySecretCACert:   creds.CACert,
+		keyKubeConfig:     creds.KubeConfig,
 	}, map[string]interface{}{
-		keyServiceAccount:      string(serviceAccount),
-		keyClusterRoles:        s.ClusterRoles,
-		keyRoleBindings:        s.RoleBindings,
-		keyClusterRoleBindings: s.ClusterRoleBindings,
+		keyServiceAccount:      creds.ServiceAccount,
+		keyClusterRoles:        creds.ClusterRoles,
+		keyRoleBindings:        creds.RoleBindings,
+		keyClusterRoleBindings: creds.ClusterRoleBindings,
 	})
 
 	// set up TTL for secret so it gets automatically revoked
@@ -112,9 +115,11 @@ func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
 
 }
 
-func createSecret(ctx context.Context, b *backend, req *logical.Request, role *VaultRole) (*Secret, error) {
+// createCredentials generate new credentials based
+// on the role settings
+func createCredentials(ctx context.Context, b *backend, req *logical.Request, role *VaultRole) (*Credentials, error) {
 
-	var serviceAccount *corev1.ServiceAccount
+	var serviceAccount = &corev1.ServiceAccount{}
 	var serviceAccountSecret *corev1.Secret
 	var userCertificate *UserCertificate
 	var subject rbacv1.Subject
@@ -130,8 +135,14 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 		return nil, err
 	}
 
+	clientSet, err := getClientset(ctx, pluginConfig)
+	certClientSet, _ := getCertificatesV1Client(ctx, pluginConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	if role.ServiceAccountNamespace == "" {
-		role.ServiceAccountNamespace = pluginConfig.DefaultSANamespace
+		role.ServiceAccountNamespace = pluginConfig.DefaultServiceAccountNamespace
 	}
 
 	if role.TTL == 0 {
@@ -152,26 +163,25 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 
 	b.Logger().Info(fmt.Sprintf("creating %s for %s", role.CredentialType, req.DisplayName))
 	if role.CredentialType == "token" {
-		if serviceAccount, serviceAccountSecret, err = b.kubernetesService.CreateServiceAccount(ctx, pluginConfig, role.ServiceAccountNamespace); err != nil {
+		if serviceAccount, serviceAccountSecret, err = b.kubernetesService.CreateServiceAccount(ctx, clientSet, role.ServiceAccountNamespace); err != nil {
 			return nil, err
 		}
 		subject = rbacv1.Subject{
-			Kind:      serviceAccount.Kind,
+			Kind:      serviceAccountKind,
 			Name:      serviceAccount.Name,
 			Namespace: serviceAccount.Namespace,
 		}
 	} else if role.CredentialType == "certificate" {
-		uniqueId, _ := sonyflake.NewSonyflake(sonyflake.Settings{}).NextID()
-		subjectName := req.DisplayName + "-" + strconv.FormatUint(uniqueId, 16)
+		subjectName := req.DisplayName + "-" + getUniqueString(6)
 		expirationSeconds := int32(role.TTL / time.Second)
-		key, certificateSignRequest := createKeyAndCertificateRequest(subjectName)
-		if certificate, err = b.kubernetesService.SignCertificateRequest(ctx, pluginConfig, subjectName, certificateSignRequest, &expirationSeconds); err != nil {
+		key, certificateSignRequest := createKeyAndCertificateRequest(subjectName, defaultRSAKeyLength)
+		if certificate, err = b.kubernetesService.SignCertificateRequest(ctx, certClientSet, subjectName, certificateSignRequest, &expirationSeconds); err != nil {
 			return nil, err
 		}
 		userCertificate = &UserCertificate{
 			Username:    subjectName,
-			Certificate: certificate,
-			PrivateKey:  encodeSecretKey(key),
+			Certificate: base64Encode(certificate),
+			PrivateKey:  base64Encode(key),
 		}
 		subject = rbacv1.Subject{
 			Kind: userKind,
@@ -179,7 +189,7 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 		}
 	}
 
-	builtInRule := BindingRule{
+	builtInRule := &BindingRule{
 		Namespaces:  []string{"*"},
 		PolicyRules: []rbacv1.PolicyRule{},
 	}
@@ -199,13 +209,13 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 	}
 
 	if len(builtInRule.PolicyRules) > 0 {
-		role.BindingRules = append(role.BindingRules, builtInRule)
+		role.BindingRules = append(role.BindingRules, *builtInRule)
 	}
 
 	for _, bindingRule := range role.BindingRules {
 		if len(bindingRule.PolicyRules) > 0 {
 			b.Logger().Info(fmt.Sprintf("creating clusterrole for %s", req.DisplayName))
-			clusterRole, err := b.kubernetesService.CreateClusterRole(ctx, pluginConfig, bindingRule.PolicyRules)
+			clusterRole, err := b.kubernetesService.CreateClusterRole(ctx, clientSet, bindingRule.PolicyRules)
 			if err != nil {
 				return nil, err
 			}
@@ -219,7 +229,7 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 			}
 			if bindingRule.Namespaces[0] == "*" {
 				b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", name, req.DisplayName))
-				clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, pluginConfig, &roleRef, &subject)
+				clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &roleRef, &subject)
 				if err != nil {
 					return nil, err
 				}
@@ -227,7 +237,7 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 			} else {
 				for _, namespace := range bindingRule.Namespaces {
 					b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", name, req.DisplayName, namespace))
-					roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, pluginConfig, namespace, &roleRef, &subject)
+					roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, clientSet, namespace, &roleRef, &subject)
 					if err != nil {
 						return nil, err
 					}
@@ -240,24 +250,27 @@ func createSecret(ctx context.Context, b *backend, req *logical.Request, role *V
 	b.Logger().Info(fmt.Sprintf("creating kube config for '%s'", req.DisplayName))
 	kubeConfig := createKubeConfig(pluginConfig.Host, pluginConfig.CACert, contextNamespace, serviceAccount, serviceAccountSecret, userCertificate)
 
+	encodedServiceAccount, _ := json.Marshal(serviceAccount)
 	encodedClusterRoles, _ := json.Marshal(clusterRoles)
 	encodedRoleBindings, _ := json.Marshal(roleBindings)
 	encodedClusterRoleBindings, _ := json.Marshal(clusterRoleBindings)
 
-	return &Secret{
-		ServiceAccount:       serviceAccount,
-		ServiceAccountSecret: serviceAccountSecret,
-		UserCertificate:      userCertificate,
-		KubeConfig:           kubeConfig,
-		Host:                 pluginConfig.Host,
-		CACert:               pluginConfig.CACert,
-		ClusterRoles:         string(encodedClusterRoles),
-		RoleBindings:         string(encodedRoleBindings),
-		ClusterRoleBindings:  string(encodedClusterRoleBindings),
+	return &Credentials{
+		Secret:              serviceAccountSecret,
+		UserCertificate:     userCertificate,
+		KubeConfig:          kubeConfig,
+		Host:                pluginConfig.Host,
+		CACert:              pluginConfig.CACert,
+		ServiceAccount:      string(encodedServiceAccount),
+		ClusterRoles:        string(encodedClusterRoles),
+		RoleBindings:        string(encodedRoleBindings),
+		ClusterRoleBindings: string(encodedClusterRoleBindings),
 	}, nil
 
 }
 
+// createKubeConfig is a helper functions for rendering a
+// kubeconfig file with the generated credentials
 func createKubeConfig(host string, caCert string, namespace string, serviceAccount *corev1.ServiceAccount, secret *corev1.Secret, userCertificate *UserCertificate) string {
 
 	name := "~"
@@ -265,7 +278,7 @@ func createKubeConfig(host string, caCert string, namespace string, serviceAccou
 	certificate := "~"
 	privateKey := "~"
 
-	if serviceAccount != nil {
+	if serviceAccount.Name != "" {
 		name = serviceAccount.Name
 		token = string(secret.Data["token"])
 	} else if userCertificate != nil {
@@ -295,8 +308,4 @@ users:
       token: %s
       client-certificate-data: %s
       client-key-data: %s`, base64Encode(caCert), host, name, name, namespace, name, name, name, name, token, certificate, privateKey)
-}
-
-func base64Encode(s string) string {
-	return base64.StdEncoding.EncodeToString([]byte(s))
 }

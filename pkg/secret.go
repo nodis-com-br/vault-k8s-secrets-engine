@@ -37,6 +37,8 @@ func secret(b *backend) *framework.Secret {
 	}
 }
 
+// revokeSecret deletes all bindings, secrets and service accounts
+//associated with the generated identity
 func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 
 	var serviceAccount *corev1.ServiceAccount
@@ -44,65 +46,68 @@ func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *fra
 	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
 	var roleBindings []*rbacv1.RoleBinding
 
-	// reload plugin config on every call to prevent stale config
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
 
+	clientSet, err := getClientset(ctx, pluginConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = decodeSecretInternalData(req, keyServiceAccount, &serviceAccount); err != nil {
+		return nil, err
+	}
 	if err = decodeSecretInternalData(req, keyClusterRoles, &clusterRoles); err != nil {
 		return nil, err
 	}
-	for _, clusterRole := range clusterRoles {
-		b.Logger().Info(fmt.Sprintf("deleting clusterrole '%s'", clusterRole))
-		if err = b.kubernetesService.DeleteClusterRole(ctx, pluginConfig, clusterRole); err != nil {
-			return nil, err
-		}
-	}
-
 	if err = decodeSecretInternalData(req, keyClusterRoleBindings, &clusterRoleBindings); err != nil {
 		return nil, err
 	}
-	for _, clusterRoleBinding := range clusterRoleBindings {
-		b.Logger().Info(fmt.Sprintf("deleting clusterrolebinding '%s'", clusterRoleBinding))
-		if err = b.kubernetesService.DeleteClusterRoleBinding(ctx, pluginConfig, clusterRoleBinding); err != nil {
-			return nil, err
-		}
-	}
-
 	if err = decodeSecretInternalData(req, keyRoleBindings, &roleBindings); err != nil {
 		return nil, err
 	}
+
+	for _, clusterRole := range clusterRoles {
+		b.Logger().Info(fmt.Sprintf("deleting clusterrole '%s'", clusterRole.Name))
+		if err = b.kubernetesService.DeleteClusterRole(ctx, clientSet, clusterRole); err != nil {
+			return nil, err
+		}
+	}
+	for _, clusterRoleBinding := range clusterRoleBindings {
+		b.Logger().Info(fmt.Sprintf("deleting clusterrolebinding '%s'", clusterRoleBinding.Name))
+		if err = b.kubernetesService.DeleteClusterRoleBinding(ctx, clientSet, clusterRoleBinding); err != nil {
+			return nil, err
+		}
+	}
 	for _, roleBinding := range roleBindings {
 		b.Logger().Info(fmt.Sprintf("deleting rolebinding '%s' in '%s' namespace", roleBinding.Name, roleBinding.Namespace))
-		if err = b.kubernetesService.DeleteRoleBinding(ctx, pluginConfig, roleBinding); err != nil {
+		if err = b.kubernetesService.DeleteRoleBinding(ctx, clientSet, roleBinding); err != nil {
 			return nil, err
 		}
 	}
-
-	if req.Secret.InternalData[keyServiceAccount].(string) != "null" {
-		if err = decodeSecretInternalData(req, keyServiceAccount, &serviceAccount); err != nil {
-			return nil, err
-		}
+	if serviceAccount.Name != "" {
 		b.Logger().Info(fmt.Sprintf("deleting serviceaccount '%s' in '%s' namespace", serviceAccount.Name, serviceAccount.Namespace))
-		if err = b.kubernetesService.DeleteServiceAccount(ctx, pluginConfig, serviceAccount); err != nil {
+		if err = b.kubernetesService.DeleteServiceAccount(ctx, clientSet, serviceAccount); err != nil {
 			return nil, err
 		}
 	}
 
-	resp := b.Secret(secretType).Response(map[string]interface{}{}, map[string]interface{}{})
-
-	return resp, nil
+	return nil, nil
 
 }
 
+// decodeSecretInternalData extracts and decodes json strings from
+// the InternalData object
 func decodeSecretInternalData(req *logical.Request, key string, target interface{}) error {
-	if raw, ok := req.Secret.InternalData[key]; ok {
-		if err := json.Unmarshal([]byte(raw.(string)), &target); err != nil {
-			return err
-		}
-		return nil
-	} else {
-		return fmt.Errorf("#{%s} key not found in secret internal data", key)
+	raw, _ := req.Secret.InternalData[key]
+	if raw == nil {
+		return fmt.Errorf("%s not found in secret internal data", key)
 	}
+	if err := json.Unmarshal([]byte(raw.(string)), &target); err != nil {
+		return err
+	}
+	return nil
+
 }

@@ -11,23 +11,31 @@ import (
 
 // default values
 const (
-	secretType              = "rbac"
-	defaultServiceAccountNs = "kube-system"
-	defaultContextNamespace = "default"
-	defaultCredentialsType  = "certificate"
-	defaultListNamespaces   = false
-	defaultViewNodes        = false
-	sleepSeconds            = 1
-	rsaKeyLength            = 4096
-	resourceNamePrefix      = "vault-"
-	tokenSecretNameSuffix   = "-token"
-	serviceAccountKind      = "ServiceAccount"
-	userKind                = "User"
-	clusterRoleKind         = "ClusterRole"
-	keyTesting              = "testing"
+	secretType                   = "rbac"
+	defaultServiceAccountNs      = "kube-system"
+	defaultContextNamespace      = "default"
+	defaultCredentialsType       = "certificate"
+	defaultListNamespaces        = false
+	defaultViewNodes             = false
+	defaultRSAKeyLength          = 4096
+	testRSAKeyLength             = 512
+	defaultWaitTime              = 1
+	resourceNamePrefix           = "vault-"
+	tokenSecretNameSuffix        = "-token"
+	serviceAccountKind           = "ServiceAccount"
+	userKind                     = "User"
+	clusterRoleKind              = "ClusterRole"
+	keyFakeClient                = "fake_client"
+	keyFakeClientObjects         = "fake_client_objects"
+	keyFakeResponse              = "fake_response"
+	tokenServiceAccountNameClaim = "kubernetes.io/serviceaccount/service-account.name"
+	backendHelp                  = `
+The Vault dynamic credentials backend provides on-demand credentials 
+for a short-lived k8s service account or certificate
+`
 )
 
-// Config constants
+// pathConfig constants
 const (
 	configPath                 = "config"
 	keyToken                   = "token"
@@ -40,11 +48,14 @@ const (
 	keyDefaultTTL              = "default_ttl"
 )
 
+// pathRotateRootCredentials constants
 const (
-	rotateRootCredentialsPath = "rotate-root"
+	rotateRootPath         = "rotate-root"
+	pathRotateRootHelpSyn  = `Request to rotate the root credentials for the backend.`
+	pathRotateRootHelpDesc = `This path attempts to rotate the root credentials for the backend.`
 )
 
-// VaultRole constants
+// pathRole constants
 const (
 	rolePath                = "role/"
 	pathRoleHelpSynopsis    = `Manages the Vault role for generating kubernetes credentials.`
@@ -72,7 +83,7 @@ const (
 	keyCredsTTL       = keyTTL
 )
 
-// Secret constants
+// secret constants
 const (
 	keySecretHost     = keyHost
 	keySecretToken    = keyToken
@@ -81,17 +92,26 @@ const (
 	keySecretUserKey  = "user_key"
 	keyKubeConfig     = "kube_config"
 
-	// Secret internal keys
+	// secret internal keys
 	keyServiceAccount      = "serviceaccount"
 	keyClusterRoles        = "clusterroles"
 	keyRoleBindings        = "rolebindings"
 	keyClusterRoleBindings = "clusterrolebindings"
 )
 
-const backendHelp = `
-The Vault dynamic service account backend provides on-demand, dynamic 
-credentials for a short-lived k8s service account
-`
+// Error messages
+const (
+	emptyConfiguration     = "configuration is empty"
+	missingCredentials     = "no credentials provided"
+	tooManyCredentials     = "either token or certificates must be provided"
+	missingCACert          = "ca_cert can not be empty"
+	noBindingsForSubject   = "no bindings found for current subject"
+	emptyClientCertificate = "client certificate is empty"
+	emptyBindingRules      = "binding rules list cannot be empty"
+	missingRulesAndRoles   = "cluster roles or policy rules must be provided"
+	emptyNamespaceList     = "namespace list cannot be empty"
+	invalidTTLs            = "ttl cannot be greater than max_ttl"
+)
 
 type backend struct {
 	*framework.Backend

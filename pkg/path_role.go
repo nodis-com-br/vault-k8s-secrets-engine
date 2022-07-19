@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// VaultRole contains all the role configuration need to create
+// credentials on-demand
 type VaultRole struct {
 	CredentialType          string        `json:"credential_type"`
 	BindingRules            []BindingRule `json:"binding_rules"`
@@ -22,6 +24,7 @@ type VaultRole struct {
 	MaxTTL                  time.Duration `json:"max_ttl"`
 }
 
+// BindingRule contains the rbac rules for the created credentials
 type BindingRule struct {
 	Namespaces   []string          `json:"namespaces"`
 	ClusterRoles []string          `json:"cluster_roles"`
@@ -43,28 +46,23 @@ func (r *VaultRole) toResponseData() map[string]interface{} {
 	return respData
 }
 
+// Validate validates the role config by checking all required values are correct
 func (r *VaultRole) Validate() error {
 
 	if r.MaxTTL != 0 && r.TTL > r.MaxTTL {
-		return fmt.Errorf("ttl cannot be greater than max_ttl")
-	}
-
-	if r.CredentialType == "certificate" {
-		if (r.TTL > 0 && r.TTL < 600*time.Second) || (r.MaxTTL > 0 && r.MaxTTL < 600*time.Second) {
-			return fmt.Errorf("certificate type credentials cannot specify a duration less than 600 seconds")
-		}
+		return fmt.Errorf(invalidTTLs)
 	}
 
 	if len(r.BindingRules) == 0 {
-		return fmt.Errorf("binding rules list cannot be empty")
+		return fmt.Errorf(emptyBindingRules)
 	}
 
 	for i, _ := range r.BindingRules {
 		if len(r.BindingRules[i].Namespaces) == 0 {
-			return fmt.Errorf("namespace list cannot be empty")
+			return fmt.Errorf(emptyNamespaceList)
 		}
 		if len(r.BindingRules[i].ClusterRoles) == 0 && len(r.BindingRules[i].PolicyRules) == 0 {
-			return fmt.Errorf("cluster roles or policy rules must be provided")
+			return fmt.Errorf(missingRulesAndRoles)
 		}
 	}
 	return nil
@@ -144,7 +142,8 @@ func pathRole(b *backend) []*framework.Path {
 	}
 }
 
-// pathRoleList makes a request to Vault storage to retrieve a list of validRoles for the backend
+// pathRoleList makes a request to Vault storage to retrieve
+// a list of valid roles for the backend
 func (b *backend) pathRoleList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	entries, err := req.Storage.List(ctx, req.Path)
 	if err != nil {
@@ -153,7 +152,8 @@ func (b *backend) pathRoleList(ctx context.Context, req *logical.Request, d *fra
 	return logical.ListResponse(entries), nil
 }
 
-// pathRoleRead makes a request to Vault storage to read a role and return response data
+// pathRoleRead makes a request to Vault storage to read a
+// role and return response data
 func (b *backend) pathRoleRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	entry, err := getRole(ctx, req.Storage, req.Path)
 	if err != nil {
@@ -167,7 +167,8 @@ func (b *backend) pathRoleRead(ctx context.Context, req *logical.Request, d *fra
 	}, nil
 }
 
-// pathRoleWrite makes a request to Vault storage to update a role based on the attributes passed to the role configuration
+// pathRoleWrite makes a request to Vault storage to update
+// a role based on the attributes passed to the role configuration
 func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 
 	role, err := getRole(ctx, req.Storage, req.Path)
@@ -210,7 +211,8 @@ func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, d *fr
 	return nil, nil
 }
 
-// pathRoleDelete makes a request to Vault storage to delete a role
+// pathRoleDelete makes a request to Vault storage to
+// delete a role
 func (b *backend) pathRoleDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	err := req.Storage.Delete(ctx, req.Path)
 	if err != nil {
@@ -221,12 +223,11 @@ func (b *backend) pathRoleDelete(ctx context.Context, req *logical.Request, d *f
 
 // setRole adds the role to the Vault storage API
 func setRole(ctx context.Context, s logical.Storage, path string, role *VaultRole) error {
-	err := role.Validate()
-	if err != nil {
-		return fmt.Errorf("invalid role: %s", err)
+	if err := role.Validate(); err != nil {
+		return err
 	}
 	entry, _ := logical.StorageEntryJSON(path, role)
-	if err = s.Put(ctx, entry); err != nil {
+	if err := s.Put(ctx, entry); err != nil {
 		return err
 	}
 	return nil

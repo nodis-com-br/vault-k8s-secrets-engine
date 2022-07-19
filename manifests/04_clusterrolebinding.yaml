@@ -1,12 +1,38 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: vault-secrets-backend
-subjects:
-  - kind: ServiceAccount
-    name: vault-secrets-backend
-    namespace: kube-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: vault-secrets-backend
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: vault-secrets-backend
+    rules:
+      - apiGroups: [ 'rbac.authorization.k8s.io' ]
+        resources: [ 'roles', 'clusterroles', 'rolebindings', 'clusterrolebindings' ]
+        verbs: [ '*' ]
+      # Required for certificate credentials type
+      - apiGroups: [ 'certificates.k8s.io' ]
+        resources: [ 'certificatesigningrequests' ]
+        verbs: [ '*' ]
+      - apiGroups: [ 'certificates.k8s.io' ]
+        resources: [ 'certificatesigningrequests/approval' ]
+        verbs: [ 'update' ]
+      - apiGroups: [ 'certificates.k8s.io' ]
+        resources: [ 'signers' ]
+        resourceNames: [ 'kubernetes.io/kube-apiserver-client' ]
+        verbs: [ 'approve', 'sign' ]
+      # Required for token credentials type
+      - apiGroups: [ '' ]
+        resources: [ 'serviceaccounts', 'secrets' ]
+        verbs: [ '*' ]
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: vault-secrets-backend
+    subjects:
+      - kind: ServiceAccount
+        name: vault-secrets-backend
+        namespace: kube-system
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: vault-secrets-backend
