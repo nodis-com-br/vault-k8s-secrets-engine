@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "go_build_image_tag": "alpine",
   "go_main_file": "cmd/vault-k8s-secrets-engine/main.go"
 }
