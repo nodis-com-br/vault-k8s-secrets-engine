@@ -18,6 +18,11 @@ jobs:
     uses: nodis-com-br/gha_workflow-jobs/.github/workflows/testing.yaml@master
     needs:
       - build_metadata
+    secrets:
+      openvpn_config: ${{ secrets.OPENVPN_CONFIG }}
+      vault_addr: ${{ secrets.VAULT_ADDR }}
+      vault_approle_role_id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+      vault_approle_secret_id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
   build_artifact:
     uses: nodis-com-br/gha_workflow-jobs/.github/workflows/publish_go_application.yaml@master
     needs:
