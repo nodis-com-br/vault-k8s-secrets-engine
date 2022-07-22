@@ -33,7 +33,7 @@ KIND_CA_CERT=$(kind get kubeconfig | grep certificate-authority-data | awk -F" "
 KIND_TOKEN=$(kubectl get secret vault-secrets-backend-secret -n kube-system -o jsonpath="{.data.token}" | base64 -d)
 vault write kubernetes/config host="${KIND_HOST}" token="${KIND_TOKEN}" ca_cert="${KIND_CA_CERT}"
 
-#vault read kubernetes/config
+vault read kubernetes/config
 
 vault write -force kubernetes/rotate-root
 
@@ -62,17 +62,17 @@ EOF
 )
 
 vault write kubernetes/role/admin binding_rules="${RULELIST01}"
-#vault read kubernetes/role/admin
+vault read kubernetes/role/admin
 vault write kubernetes/role/developer binding_rules="${RULELIST02}" view_nodes=true credentials_type=certificate
-#vault read kubernetes/role/developer
+vault read kubernetes/role/developer
 vault list kubernetes/role
 
 
 SECRET=$(vault read -format=json kubernetes/creds/developer ttl=5)
 #echo "${SECRET}" | jq -r 'del(.data)'
 #echo "${SECRET}" | jq -r .data.user_cert | base64 -d | openssl x509 -text
-echo "${SECRET}" | jq -r .data.kube_config > kubeconfig
-
+#echo "${SECRET}" | jq -r .data.kube_config > kubeconfig
+#
 
 while true; do
   sleep 1
