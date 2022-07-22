@@ -67,7 +67,6 @@ vault write kubernetes/role/developer binding_rules="${RULELIST02}" view_nodes=t
 vault read kubernetes/role/developer
 vault list kubernetes/role
 
-
 SECRET=$(vault read -format=json kubernetes/creds/developer ttl=5)
 #echo "${SECRET}" | jq -r 'del(.data)'
 #echo "${SECRET}" | jq -r .data.user_cert | base64 -d | openssl x509 -text
