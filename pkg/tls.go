@@ -41,8 +41,8 @@ func createKeyAndSelfSignedCertificate(subjectName string, keyLength int) (strin
 	return pemEncode(keyDer, "RSA PRIVATE KEY"), pemEncode(certDer, "CERTIFICATE")
 }
 
-// pemEncode add the PEM type headers and footers
-// to the provided byte slice and returns a string
+// pemEncode add the PEM type headers and footers to
+// the provided byte slice and returns a string
 func pemEncode(b []byte, t string) string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: t, Bytes: b}))
 }
