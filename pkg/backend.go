@@ -18,7 +18,7 @@ const (
 	defaultListNamespaces        = false
 	defaultViewNodes             = false
 	defaultRSAKeyLength          = 4096
-	testRSAKeyLength             = 512
+	testRSAKeyLength             = 1024
 	defaultWaitTime              = 1
 	resourceNamePrefix           = "vault-"
 	tokenSecretNameSuffix        = "-token"
