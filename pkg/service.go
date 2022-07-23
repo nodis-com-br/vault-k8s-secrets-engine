@@ -229,10 +229,10 @@ func getRestConfig(pluginConfig *Config) *rest.Config {
 }
 
 func getClientset(ctx context.Context, pluginConfig *Config) (client.Interface, error) {
-	if ctx.Value(keyFakeClient) != nil && ctx.Value(keyFakeClient).(bool) {
+	if ctx.Value(keyFakeK8sClient) != nil && ctx.Value(keyFakeK8sClient).(bool) {
 		var objList []runtime.Object
-		if ctx.Value(keyFakeClientObjects) != nil {
-			objList = ctx.Value(keyFakeClientObjects).([]runtime.Object)
+		if ctx.Value(keyFakeK8sClientObjects) != nil {
+			objList = ctx.Value(keyFakeK8sClientObjects).([]runtime.Object)
 		}
 		c := fakeClient.NewSimpleClientset(objList...)
 		return c, nil
@@ -250,7 +250,7 @@ func getClientset(ctx context.Context, pluginConfig *Config) (client.Interface, 
 }
 
 func getCertificatesV1Client(ctx context.Context, pluginConfig *Config) (certClient.CertificatesV1Interface, error) {
-	if ctx.Value(keyFakeClient) != nil && ctx.Value(keyFakeClient).(bool) {
+	if ctx.Value(keyFakeK8sClient) != nil && ctx.Value(keyFakeK8sClient).(bool) {
 		return &fakeCertClient.FakeCertificatesV1{
 			Fake: &testing.Fake{},
 		}, nil

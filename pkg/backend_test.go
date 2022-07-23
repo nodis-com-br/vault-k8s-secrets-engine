@@ -210,10 +210,10 @@ func testStorageDelete(ctx context.Context, b logical.Backend, s logical.Storage
 }
 
 func addObjectToContext(ctx context.Context, object runtime.Object) context.Context {
-	if ctx.Value(keyFakeClientObjects) != nil {
-		objList := ctx.Value(keyFakeClientObjects).([]runtime.Object)
+	if ctx.Value(keyFakeK8sClientObjects) != nil {
+		objList := ctx.Value(keyFakeK8sClientObjects).([]runtime.Object)
 		objList = append(objList, object)
-		ctx = context.WithValue(ctx, keyFakeClientObjects, objList)
+		ctx = context.WithValue(ctx, keyFakeK8sClientObjects, objList)
 	}
 	return ctx
 }

@@ -25,8 +25,8 @@ const (
 	serviceAccountKind           = "ServiceAccount"
 	userKind                     = "User"
 	clusterRoleKind              = "ClusterRole"
-	keyFakeClient                = "fake_client"
-	keyFakeClientObjects         = "fake_client_objects"
+	keyFakeK8sClient             = "fake_client"
+	keyFakeK8sClientObjects      = "fake_client_objects"
 	keyFakeResponse              = "fake_response"
 	tokenServiceAccountNameClaim = "kubernetes.io/serviceaccount/service-account.name"
 	backendHelp                  = `
