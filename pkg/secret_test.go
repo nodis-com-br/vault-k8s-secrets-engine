@@ -29,8 +29,8 @@ func TestSecret(t *testing.T) {
 	crb := &rbacv1.ClusterRoleBinding{ObjectMeta: objMeta}
 
 	ctx = context.WithValue(ctx, keyFakeResponse, true)
-	ctx = context.WithValue(ctx, keyFakeClient, true)
-	ctx = context.WithValue(ctx, keyFakeClientObjects, []runtime.Object{sa, s, cr, crb, rb})
+	ctx = context.WithValue(ctx, keyFakeK8sClient, true)
+	ctx = context.WithValue(ctx, keyFakeK8sClientObjects, []runtime.Object{sa, s, cr, crb, rb})
 
 	encodedSA, _ := json.Marshal(sa)
 	encodedCRs, _ := json.Marshal([]*rbacv1.ClusterRole{cr})
@@ -128,7 +128,7 @@ func TestSecret(t *testing.T) {
 		assert.EqualError(t, err, keyRoleBindings+" not found in secret internal data")
 	})
 
-	ctx = context.WithValue(ctx, keyFakeClientObjects, []runtime.Object{})
+	ctx = context.WithValue(ctx, keyFakeK8sClientObjects, []runtime.Object{})
 
 	t.Run("revoke credentials (non existent service account)", func(t *testing.T) {
 		_, err := b.Backend.Secrets[0].HandleRevoke(ctx, &logical.Request{

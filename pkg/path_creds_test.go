@@ -10,7 +10,7 @@ import (
 func TestCreds(t *testing.T) {
 
 	b, reqStorage, ctx := getTestBackend(t)
-	ctx = context.WithValue(ctx, keyFakeClient, true)
+	ctx = context.WithValue(ctx, keyFakeK8sClient, true)
 	ctx = context.WithValue(ctx, keyFakeResponse, true)
 	_, _ = testStorageCreate(ctx, b, reqStorage, configPath, configs[0])
 

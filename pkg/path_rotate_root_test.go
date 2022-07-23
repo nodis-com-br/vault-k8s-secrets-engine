@@ -18,7 +18,7 @@ func TestRotateCredentials(t *testing.T) {
 	b, reqStorage, ctx := getTestBackend(t)
 
 	_, _ = testStorageCreate(ctx, b, reqStorage, configPath, configs[0])
-	ctx = context.WithValue(ctx, keyFakeClient, true)
+	ctx = context.WithValue(ctx, keyFakeK8sClient, true)
 
 	t.Run("rotate root credentials (no bindings)", func(t *testing.T) {
 		_, err := b.pathRotateRootUpdate(ctx, &logical.Request{Storage: reqStorage}, &framework.FieldData{})
@@ -27,7 +27,7 @@ func TestRotateCredentials(t *testing.T) {
 
 	objMeta := metav1.ObjectMeta{Name: getUniqueString(6)}
 	subject := rbac.Subject{Name: testSubject1}
-	ctx = context.WithValue(ctx, keyFakeClientObjects, []runtime.Object{
+	ctx = context.WithValue(ctx, keyFakeK8sClientObjects, []runtime.Object{
 		&rbac.ClusterRoleBinding{ObjectMeta: objMeta, Subjects: []rbac.Subject{subject}},
 		&rbac.RoleBinding{ObjectMeta: objMeta, Subjects: []rbac.Subject{subject}},
 	})
@@ -46,7 +46,7 @@ func TestRotateCredentials(t *testing.T) {
 	})
 
 	subject = rbac.Subject{Name: testSubject2}
-	ctx = context.WithValue(ctx, keyFakeClientObjects, []runtime.Object{
+	ctx = context.WithValue(ctx, keyFakeK8sClientObjects, []runtime.Object{
 		&rbac.ClusterRoleBinding{ObjectMeta: objMeta, Subjects: []rbac.Subject{subject}},
 		&rbac.RoleBinding{ObjectMeta: objMeta, Subjects: []rbac.Subject{subject}},
 	})
