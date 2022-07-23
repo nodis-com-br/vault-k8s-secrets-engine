@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-// Config contains all the configuration for the plugin
+// Config contains all the configuration options for the plugin
 type Config struct {
 	Token                          string        `json:"token"`
 	ClientCert                     string        `json:"client_cert"`
