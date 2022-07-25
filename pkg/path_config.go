@@ -158,7 +158,8 @@ func (b *backend) pathConfigDelete(ctx context.Context, req *logical.Request, d 
 	return nil, nil
 }
 
-// getConfig is a helper function to simplify the loading of plugin configuration from the logical store
+// getConfig is a helper function to simplify the loading
+// of plugin configuration from the logical store
 func getConfig(ctx context.Context, s logical.Storage) (*Config, error) {
 	raw, err := s.Get(ctx, configPath)
 	if err != nil {

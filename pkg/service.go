@@ -77,7 +77,7 @@ func (k *KubernetesService) DeleteServiceAccount(ctx context.Context, clientSet 
 }
 
 // SignCertificateRequest creates a certificate signing request,
-// approve it and returns the signed certificate
+// approves it and returns the signed certificate
 func (k *KubernetesService) SignCertificateRequest(ctx context.Context, clientSet certClient.CertificatesV1Interface, subjectName string, csrBytes []byte, expirationSeconds *int32) (string, error) {
 
 	csrTemplate := &certificatesv1.CertificateSigningRequest{
