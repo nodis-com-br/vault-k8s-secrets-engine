@@ -1,0 +1,36 @@
+name: go-application
+
+on:
+  workflow_dispatch: ~
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  get_metadata:
+    uses: nodis-com-br/gha-workflows/.github/workflows/get-metadata.yaml@master
+  test_code:
+    uses: nodis-com-br/gha-workflows/.github/workflows/testing.yaml@master
+    needs:
+      - get_metadata
+    secrets:
+      openvpn_config: ${{ secrets.OPENVPN_CONFIG }}
+      vault_addr: ${{ secrets.VAULT_ADDR }}
+      vault_approle_role_id: ${{ secrets.VAULT_APPROLE_ROLE_ID }}
+      vault_approle_secret_id: ${{ secrets.VAULT_APPROLE_SECRET_ID }}
+  publish_artifact:
+    uses: nodis-com-br/gha-workflows/.github/workflows/publish-go-application.yaml@master
+    needs:
+      - get_metadata
+  revert_bump:
+    uses: nodis-com-br/gha-workflows/.github/workflows/revert-bump.yaml@master
+    needs:
+      - publish_artifact
+    if: always()
+    with:
+      build_result: ${{ needs.publish_artifact.result }}
