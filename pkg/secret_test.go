@@ -3,13 +3,13 @@ package secretsengine
 import (
 	"context"
 	"encoding/json"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/hashicorp/vault/sdk/logical"
 
@@ -38,9 +38,7 @@ func TestSecret(t *testing.T) {
 	encodedCRBs, _ := json.Marshal([]*rbacv1.ClusterRoleBinding{crb})
 
 	emptySA, _ := json.Marshal(&corev1.ServiceAccount{})
-	emptyCRs, _ := json.Marshal([]*rbacv1.ClusterRole{})
-	emptyRBs, _ := json.Marshal([]*rbacv1.RoleBinding{})
-	emptyCRBs, _ := json.Marshal([]*rbacv1.ClusterRoleBinding{})
+	emptyJsonArray := "[]"
 
 	t.Run("revoke credentials", func(t *testing.T) {
 		_, err := b.Backend.Secrets[0].HandleRevoke(ctx, &logical.Request{
@@ -136,9 +134,9 @@ func TestSecret(t *testing.T) {
 			Secret: &logical.Secret{
 				InternalData: map[string]interface{}{
 					keyServiceAccount:      string(encodedSA),
-					keyClusterRoles:        string(emptyCRs),
-					keyRoleBindings:        string(emptyRBs),
-					keyClusterRoleBindings: string(emptyCRBs),
+					keyClusterRoles:        emptyJsonArray,
+					keyRoleBindings:        emptyJsonArray,
+					keyClusterRoleBindings: emptyJsonArray,
 				},
 			},
 		})
@@ -147,7 +145,7 @@ func TestSecret(t *testing.T) {
 		assert.EqualError(t, err, `serviceaccounts "`+objMeta.Name+`" not found`)
 	})
 
-	ctx = addObjectToContext(ctx, sa)
+	ctx = context.WithValue(ctx, keyFakeK8sClientObjects, []runtime.Object{sa})
 
 	t.Run("revoke credentials (non existent service account secret)", func(t *testing.T) {
 		_, err := b.Backend.Secrets[0].HandleRevoke(ctx, &logical.Request{
@@ -155,9 +153,9 @@ func TestSecret(t *testing.T) {
 			Secret: &logical.Secret{
 				InternalData: map[string]interface{}{
 					keyServiceAccount:      string(encodedSA),
-					keyClusterRoles:        string(emptyCRs),
-					keyRoleBindings:        string(emptyRBs),
-					keyClusterRoleBindings: string(emptyCRBs),
+					keyClusterRoles:        emptyJsonArray,
+					keyRoleBindings:        emptyJsonArray,
+					keyClusterRoleBindings: emptyJsonArray,
 				},
 			},
 		})
@@ -173,8 +171,8 @@ func TestSecret(t *testing.T) {
 				InternalData: map[string]interface{}{
 					keyServiceAccount:      string(emptySA),
 					keyClusterRoles:        string(encodedCRs),
-					keyRoleBindings:        string(emptyRBs),
-					keyClusterRoleBindings: string(emptyCRBs),
+					keyRoleBindings:        emptyJsonArray,
+					keyClusterRoleBindings: emptyJsonArray,
 				},
 			},
 		})
@@ -189,8 +187,8 @@ func TestSecret(t *testing.T) {
 			Secret: &logical.Secret{
 				InternalData: map[string]interface{}{
 					keyServiceAccount:      string(emptySA),
-					keyClusterRoles:        string(emptyCRs),
-					keyRoleBindings:        string(emptyRBs),
+					keyClusterRoles:        emptyJsonArray,
+					keyRoleBindings:        emptyJsonArray,
 					keyClusterRoleBindings: string(encodedCRBs),
 				},
 			},
@@ -206,9 +204,9 @@ func TestSecret(t *testing.T) {
 			Secret: &logical.Secret{
 				InternalData: map[string]interface{}{
 					keyServiceAccount:      string(emptySA),
-					keyClusterRoles:        string(emptyCRs),
+					keyClusterRoles:        emptyJsonArray,
 					keyRoleBindings:        string(encodedRBs),
-					keyClusterRoleBindings: string(emptyCRBs),
+					keyClusterRoleBindings: emptyJsonArray,
 				},
 			},
 		})

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang-jwt/jwt/v4"
-	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	"testing"
 	"time"
@@ -124,8 +123,7 @@ func init() {
 	}
 }
 
-// getTestBackend will help you construct a test backend object.
-// Update this function with your target backend.
+// getTestBackend constructs a test backend object.
 func getTestBackend(tb testing.TB) (*backend, logical.Storage, context.Context) {
 	tb.Helper()
 
@@ -207,13 +205,4 @@ func testStorageDelete(ctx context.Context, b logical.Backend, s logical.Storage
 		Path:      path,
 		Storage:   s,
 	})
-}
-
-func addObjectToContext(ctx context.Context, object runtime.Object) context.Context {
-	if ctx.Value(keyFakeK8sClientObjects) != nil {
-		objList := ctx.Value(keyFakeK8sClientObjects).([]runtime.Object)
-		objList = append(objList, object)
-		ctx = context.WithValue(ctx, keyFakeK8sClientObjects, objList)
-	}
-	return ctx
 }
