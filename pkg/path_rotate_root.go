@@ -61,7 +61,7 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 		return nil, fmt.Errorf(noBindingsForSubject)
 	}
 
-	newSubjectName := "vault-" + getUniqueString(6)
+	newSubjectName := resourceNamePrefix + getUniqueString(6)
 	subject := rbacv1.Subject{
 		Kind: userKind,
 		Name: newSubjectName,
@@ -87,15 +87,19 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 		}
 	}
 
-	newConfig := &Config{
-		ClientCert:                     certificate,
-		ClientKey:                      key,
-		CACert:                         pluginConfig.CACert,
-		Host:                           pluginConfig.Host,
-		DefaultServiceAccountNamespace: pluginConfig.DefaultServiceAccountNamespace,
-		DefaultTTL:                     pluginConfig.DefaultTTL,
-		DefaultMaxTTL:                  pluginConfig.DefaultMaxTTL,
-	}
+	//newConfig := &Config{
+	//	ClientCert:                     certificate,
+	//	ClientKey:                      key,
+	//	CACert:                         pluginConfig.CACert,
+	//	Host:                           pluginConfig.Host,
+	//	DefaultServiceAccountNamespace: pluginConfig.DefaultServiceAccountNamespace,
+	//	DefaultTTL:                     pluginConfig.DefaultTTL,
+	//	DefaultMaxTTL:                  pluginConfig.DefaultMaxTTL,
+	//}
+
+	newConfig := pluginConfig
+	newConfig.ClientCert = certificate
+	newConfig.ClientKey = key
 
 	entry, _ := logical.StorageEntryJSON(configPath, newConfig)
 	if err = req.Storage.Put(ctx, entry); err != nil {
