@@ -1,3 +1,13 @@
+/*
+ * Vault Kubernetes Secrets Engine
+ *
+ * This is a plugin for generating dynamic kubernetes credentials
+ * for use with Hashicorp Vault
+ *
+ *
+ * Contact: pedro.tonini@hotmail.com
+ */
+
 package secretsengine
 
 import (
