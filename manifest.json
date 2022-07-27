@@ -1,5 +1,5 @@
 {
-  "version": "2.0.7",
+  "version": "2.1.0",
   "go_build_image_tag": "alpine",
   "go_main_file": "main.go"
 }

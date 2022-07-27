@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.0.7...v2.1.0) (2022-07-27)
+
+
+### Features
+
+* integratinon test script refactored, repository reorganized, added readme ([272dee2](https://github.com/nodis-com-br/vault-k8s-secrets-engine/commit/272dee2bd3d7372d095d05b9245397eec6c3b249))
+
 ### [2.0.7](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.0.6...v2.0.7) (2022-07-25)
 
 ### [2.0.6](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.0.5...v2.0.6) (2022-07-23)
