@@ -200,7 +200,8 @@ func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request,
 	role, err := getRole(ctx, req.Storage, req.Path)
 	if err != nil {
 		return nil, err
-	} else if role == nil {
+	}
+	if role == nil {
 		role = &VaultRole{}
 	}
 

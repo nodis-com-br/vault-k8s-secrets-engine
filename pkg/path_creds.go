@@ -94,7 +94,8 @@ func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
 	role, err := getRole(ctx, req.Storage, rolePath+d.Get(keyVaultCredsName).(string))
 	if err != nil {
 		return nil, err
-	} else if role == nil {
+	}
+	if role == nil {
 		return nil, fmt.Errorf("error retrieving role: role is nil")
 	}
 
@@ -195,7 +196,8 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			Name:      sa.Name,
 			Namespace: sa.Namespace,
 		}
-	} else if role.CredentialType == "c" {
+	}
+	if role.CredentialType == "certificate" {
 		sbjName := req.DisplayName + "-" + getUniqueString(6)
 		es := int32(role.TTL / time.Second)
 		key, csr := createKeyAndCertificateRequest(sbjName, defaultRSAKeyLength)
@@ -307,7 +309,8 @@ func createKubeConfig(h string, ca string, ns string, sa *corev1.ServiceAccount,
 	if sa.Name != "" {
 		name = sa.Name
 		token = string(s.Data["token"])
-	} else if c != nil {
+	}
+	if c != nil {
 		name = c.Username
 		certificate = c.Certificate
 		privateKey = c.PrivateKey
