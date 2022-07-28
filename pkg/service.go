@@ -51,8 +51,8 @@ func (k *KubernetesService) CreateServiceAccount(ctx context.Context, clientSet 
 
 	sa, err := clientSet.CoreV1().ServiceAccounts(namespace).Create(ctx, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: resourceNamePrefix,
-			Namespace:    namespace,
+			Name:      resourceNamePrefix + getUniqueString(4),
+			Namespace: namespace,
 		},
 	}, metav1.CreateOptions{})
 	if err != nil {
