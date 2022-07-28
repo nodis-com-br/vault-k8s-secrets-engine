@@ -50,11 +50,12 @@ func pathRotateRootCredentials(b *backend) *framework.Path {
 // copies all bindings from the current identity to the new and
 // removes the original bindings. It DOES NOT remove the original
 // identity itself.
-func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request,
+	data *framework.FieldData) (*logical.Response, error) {
 
-	var expirationSeconds int32
-	var certificate string
-	var currentSubjectName string
+	var es int32
+	var c string
+	var csn string
 
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -69,57 +70,48 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 
 	if pluginConfig.Token != "" {
 		token, _ := jwt.Parse(pluginConfig.Token, nil)
-		currentSubjectName = token.Claims.(jwt.MapClaims)[tokenServiceAccountNameClaim].(string)
+		csn = token.Claims.(jwt.MapClaims)[tokenServiceAccountNameClaim].(string)
 	} else {
 		clientCert, _ := parseCertificate(pluginConfig.ClientCert)
-		currentSubjectName = clientCert.Subject.CommonName
+		csn = clientCert.Subject.CommonName
 	}
 
-	crbs, _ := b.kubernetesService.GetSubjectClusterRoleBindings(ctx, clientSet, currentSubjectName)
-	rbs, _ := b.kubernetesService.GetSubjectRoleBindings(ctx, clientSet, currentSubjectName)
+	crbs, _ := b.kubernetesService.GetSubjectClusterRoleBindings(ctx, clientSet, csn)
+	rbs, _ := b.kubernetesService.GetSubjectRoleBindings(ctx, clientSet, csn)
 
 	if len(crbs)+len(rbs) == 0 {
 		return nil, fmt.Errorf(noBindingsForSubject)
 	}
 
-	newSubjectName := resourceNamePrefix + getUniqueString(6)
-	subject := rbacv1.Subject{
+	nsn := resourceNamePrefix + getUniqueString(6)
+	sbj := rbacv1.Subject{
 		Kind: userKind,
-		Name: newSubjectName,
+		Name: nsn,
 	}
-	b.Logger().Info(fmt.Sprintf("creating credentials for %s", newSubjectName))
-	key, csr := createKeyAndCertificateRequest(newSubjectName, defaultRSAKeyLength)
-	if certificate, err = b.kubernetesService.SignCertificateRequest(ctx, certClientSet, newSubjectName, csr, &expirationSeconds); err != nil {
+	b.Logger().Info(fmt.Sprintf("creating credentials for %s", nsn))
+	key, csr := createKeyAndCertificateRequest(nsn, defaultRSAKeyLength)
+	if c, err = b.kubernetesService.SignCertificateRequest(ctx, certClientSet, nsn, csr, &es); err != nil {
 		return nil, err
 	}
 
 	for _, crb := range crbs {
-		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", crb.RoleRef.Name, subject.Name))
-		_, err = b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &crb.RoleRef, &subject)
+		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'",
+			crb.RoleRef.Name, sbj.Name))
+		_, err = b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &crb.RoleRef, &sbj)
 		if err != nil {
 			return nil, err
 		}
 	}
 	for _, rb := range rbs {
-		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", rb.RoleRef.Name, subject.Name))
-		_, err = b.kubernetesService.CreateRoleBinding(ctx, clientSet, rb.Namespace, &rb.RoleRef, &subject)
+		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", rb.RoleRef.Name, sbj.Name))
+		_, err = b.kubernetesService.CreateRoleBinding(ctx, clientSet, rb.Namespace, &rb.RoleRef, &sbj)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	//newConfig := &Config{
-	//	ClientCert:                     certificate,
-	//	ClientKey:                      key,
-	//	CACert:                         pluginConfig.CACert,
-	//	Host:                           pluginConfig.Host,
-	//	DefaultServiceAccountNamespace: pluginConfig.DefaultServiceAccountNamespace,
-	//	DefaultTTL:                     pluginConfig.DefaultTTL,
-	//	DefaultMaxTTL:                  pluginConfig.DefaultMaxTTL,
-	//}
-
 	newConfig := pluginConfig
-	newConfig.ClientCert = certificate
+	newConfig.ClientCert = c
 	newConfig.ClientKey = key
 
 	entry, _ := logical.StorageEntryJSON(configPath, newConfig)

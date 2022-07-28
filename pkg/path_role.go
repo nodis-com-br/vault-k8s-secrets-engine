@@ -101,9 +101,10 @@ func pathRole(b *backend) []*framework.Path {
 					Required:    true,
 				},
 				keyCredentialsType: {
-					Type:        framework.TypeString,
-					Description: fmt.Sprintf("Type of credential create. Must be either 'certificate' or 'token'"),
-					Default:     defaultCredentialsType,
+					Type: framework.TypeString,
+					Description: fmt.Sprintf("Type of credential create. Must be either 'certificate' " +
+						"or 'token'"),
+					Default: defaultCredentialsType,
 				},
 				keyBindingRules: {
 					Type:        framework.TypeString,
@@ -125,8 +126,9 @@ func pathRole(b *backend) []*framework.Path {
 					Description: "Namespace of the role ServiceAccount",
 				},
 				keyTTL: {
-					Type:        framework.TypeDurationSecond,
-					Description: "Default lease for generated credentials. If not set or set to 0, will use system default.",
+					Type: framework.TypeDurationSecond,
+					Description: "Default lease for generated credentials. If not set or set to 0, will use system" +
+						" default.",
 				},
 				keyMaxTTL: {
 					Type:        framework.TypeDurationSecond,
@@ -165,7 +167,8 @@ func pathRole(b *backend) []*framework.Path {
 
 // pathRoleList makes a request to Vault storage to retrieve
 // a list of valid roles for the backend
-func (b *backend) pathRoleList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRoleList(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 	entries, err := req.Storage.List(ctx, req.Path)
 	if err != nil {
 		return nil, err
@@ -175,7 +178,8 @@ func (b *backend) pathRoleList(ctx context.Context, req *logical.Request, d *fra
 
 // pathRoleRead makes a request to Vault storage to read a
 // role and return response data
-func (b *backend) pathRoleRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRoleRead(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 	entry, err := getRole(ctx, req.Storage, req.Path)
 	if err != nil {
 		return nil, err
@@ -190,7 +194,8 @@ func (b *backend) pathRoleRead(ctx context.Context, req *logical.Request, d *fra
 
 // pathRoleWrite makes a request to Vault storage to update
 // a role based on the attributes passed to the role configuration
-func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 
 	role, err := getRole(ctx, req.Storage, req.Path)
 	if err != nil {
@@ -234,7 +239,8 @@ func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, d *fr
 
 // pathRoleDelete makes a request to Vault storage to
 // delete a role
-func (b *backend) pathRoleDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRoleDelete(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 	err := req.Storage.Delete(ctx, req.Path)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting role: %w", err)

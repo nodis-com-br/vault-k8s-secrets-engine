@@ -68,8 +68,9 @@ func pathCredentials(b *backend) *framework.Path {
 				Required:    true,
 			},
 			keyCredsTTL: {
-				Type:        framework.TypeDurationSecond,
-				Description: "The time to live for the token in seconds. If not set or set to 0, will use system default.",
+				Type: framework.TypeDurationSecond,
+				Description: "The time to live for the token in seconds. If not set or set to 0, will use system " +
+					"default.",
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -83,7 +84,8 @@ func pathCredentials(b *backend) *framework.Path {
 
 // pathCredentialsRead retrieves the role configuration
 // and generate new credentials
-func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 
 	var secretToken string
 	var userCertificate string
@@ -140,15 +142,15 @@ func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
 // on the role settings
 func createCredentials(ctx context.Context, b *backend, req *logical.Request, role *VaultRole) (*Credentials, error) {
 
-	var serviceAccount = &corev1.ServiceAccount{}
-	var serviceAccountSecret *corev1.Secret
-	var userCertificate *UserCertificate
-	var subject rbacv1.Subject
-	var certificate string
-	var roleBindings []*rbacv1.RoleBinding
-	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	var clusterRoles []*rbacv1.ClusterRole
-	var contextNamespace = defaultContextNamespace
+	var sa = &corev1.ServiceAccount{}
+	var sas *corev1.Secret
+	var uc *UserCertificate
+	var sbj rbacv1.Subject
+	var c string
+	var rbs []*rbacv1.RoleBinding
+	var crb []*rbacv1.ClusterRoleBinding
+	var crs []*rbacv1.ClusterRole
+	var cn = defaultContextNamespace
 
 	// reload plugin config on every call to prevent stale config
 	pluginConfig, err := getConfig(ctx, req.Storage)
@@ -184,29 +186,30 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 
 	b.Logger().Info(fmt.Sprintf("creating %s for %s", role.CredentialType, req.DisplayName))
 	if role.CredentialType == "token" {
-		if serviceAccount, serviceAccountSecret, err = b.kubernetesService.CreateServiceAccount(ctx, clientSet, role.ServiceAccountNamespace); err != nil {
+		sa, sas, err = b.kubernetesService.CreateServiceAccount(ctx, clientSet, role.ServiceAccountNamespace)
+		if err != nil {
 			return nil, err
 		}
-		subject = rbacv1.Subject{
+		sbj = rbacv1.Subject{
 			Kind:      serviceAccountKind,
-			Name:      serviceAccount.Name,
-			Namespace: serviceAccount.Namespace,
+			Name:      sa.Name,
+			Namespace: sa.Namespace,
 		}
-	} else if role.CredentialType == "certificate" {
-		subjectName := req.DisplayName + "-" + getUniqueString(6)
-		expirationSeconds := int32(role.TTL / time.Second)
-		key, certificateSignRequest := createKeyAndCertificateRequest(subjectName, defaultRSAKeyLength)
-		if certificate, err = b.kubernetesService.SignCertificateRequest(ctx, certClientSet, subjectName, certificateSignRequest, &expirationSeconds); err != nil {
+	} else if role.CredentialType == "c" {
+		sbjName := req.DisplayName + "-" + getUniqueString(6)
+		es := int32(role.TTL / time.Second)
+		key, csr := createKeyAndCertificateRequest(sbjName, defaultRSAKeyLength)
+		if c, err = b.kubernetesService.SignCertificateRequest(ctx, certClientSet, sbjName, csr, &es); err != nil {
 			return nil, err
 		}
-		userCertificate = &UserCertificate{
-			Username:    subjectName,
-			Certificate: base64Encode(certificate),
+		uc = &UserCertificate{
+			Username:    sbjName,
+			Certificate: base64Encode(c),
 			PrivateKey:  base64Encode(key),
 		}
-		subject = rbacv1.Subject{
+		sbj = rbacv1.Subject{
 			Kind: userKind,
-			Name: subjectName,
+			Name: sbjName,
 		}
 	}
 
@@ -240,7 +243,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			if err != nil {
 				return nil, err
 			}
-			clusterRoles = append(clusterRoles, clusterRole)
+			crs = append(crs, clusterRole)
 			bindingRule.ClusterRoles = append(bindingRule.ClusterRoles, clusterRole.Name)
 		}
 		for _, name := range bindingRule.ClusterRoles {
@@ -250,35 +253,36 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			}
 			if bindingRule.Namespaces[0] == "*" {
 				b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", name, req.DisplayName))
-				clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &roleRef, &subject)
+				clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &roleRef, &sbj)
 				if err != nil {
 					return nil, err
 				}
-				clusterRoleBindings = append(clusterRoleBindings, clusterRoleBinding)
+				crb = append(crb, clusterRoleBinding)
 			} else {
 				for _, namespace := range bindingRule.Namespaces {
-					b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", name, req.DisplayName, namespace))
-					roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, clientSet, namespace, &roleRef, &subject)
+					b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", name,
+						req.DisplayName, namespace))
+					roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, clientSet, namespace, &roleRef, &sbj)
 					if err != nil {
 						return nil, err
 					}
-					roleBindings = append(roleBindings, roleBinding)
+					rbs = append(rbs, roleBinding)
 				}
 			}
 		}
 	}
 
 	b.Logger().Info(fmt.Sprintf("creating kube config for '%s'", req.DisplayName))
-	kubeConfig := createKubeConfig(pluginConfig.Host, pluginConfig.CACert, contextNamespace, serviceAccount, serviceAccountSecret, userCertificate)
+	kubeConfig := createKubeConfig(pluginConfig.Host, pluginConfig.CACert, cn, sa, sas, uc)
 
-	encodedServiceAccount, _ := json.Marshal(serviceAccount)
-	encodedClusterRoles, _ := json.Marshal(clusterRoles)
-	encodedRoleBindings, _ := json.Marshal(roleBindings)
-	encodedClusterRoleBindings, _ := json.Marshal(clusterRoleBindings)
+	encodedServiceAccount, _ := json.Marshal(sa)
+	encodedClusterRoles, _ := json.Marshal(crs)
+	encodedRoleBindings, _ := json.Marshal(rbs)
+	encodedClusterRoleBindings, _ := json.Marshal(crb)
 
 	return &Credentials{
-		Secret:              serviceAccountSecret,
-		UserCertificate:     userCertificate,
+		Secret:              sas,
+		UserCertificate:     uc,
 		KubeConfig:          kubeConfig,
 		Host:                pluginConfig.Host,
 		CACert:              pluginConfig.CACert,
@@ -292,20 +296,21 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 
 // createKubeConfig is a helper functions for rendering a
 // kubeconfig file with the generated credentials
-func createKubeConfig(host string, caCert string, namespace string, serviceAccount *corev1.ServiceAccount, secret *corev1.Secret, userCertificate *UserCertificate) string {
+func createKubeConfig(h string, ca string, ns string, sa *corev1.ServiceAccount, s *corev1.Secret,
+	c *UserCertificate) string {
 
 	name := "~"
 	token := "~"
 	certificate := "~"
 	privateKey := "~"
 
-	if serviceAccount.Name != "" {
-		name = serviceAccount.Name
-		token = string(secret.Data["token"])
-	} else if userCertificate != nil {
-		name = userCertificate.Username
-		certificate = userCertificate.Certificate
-		privateKey = userCertificate.PrivateKey
+	if sa.Name != "" {
+		name = sa.Name
+		token = string(s.Data["token"])
+	} else if c != nil {
+		name = c.Username
+		certificate = c.Certificate
+		privateKey = c.PrivateKey
 	}
 
 	return fmt.Sprintf(`---
@@ -319,7 +324,7 @@ clusters:
 contexts:
   - context:
       cluster: %s
-      namespace: %s      
+      ns: %s      
       user: %s
     name: %s
 current-context: %s
@@ -328,5 +333,5 @@ users:
     user:
       token: %s
       client-certificate-data: %s
-      client-key-data: %s`, base64Encode(caCert), host, name, name, namespace, name, name, name, name, token, certificate, privateKey)
+      client-key-data: %s`, base64Encode(ca), h, name, name, ns, name, name, name, name, token, certificate, privateKey)
 }
