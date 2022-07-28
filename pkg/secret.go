@@ -1,20 +1,22 @@
 /*
- * Vault Kubernetes Secrets Engine is a plugin for
- * generating dynamic kubernetes credentials with
- * Hashicorp Vault
+ * Vault Kubernetes Secrets Engine is a
+ * Hashicorp Vault plugin for generating
+ * dynamic kubernetes credentials.
  *
  * Contact: pedro.tonini@hotmail.com
  *
- * Vault Kubernetes Secrets Engine is free software; you can
- * redistribute it and/or modify it under the terms of the
- * GNU Lesser General Public License as published by the Free
- * Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
+ * Vault Kubernetes Secrets Engine is free software;
+ * you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Vault Kubernetes Secrets Engine is distributed in the hope that
- * it will be useful, but WITHOUT ANY WARRANTY; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU Lesser General Public License for more details.
+ * Vault Kubernetes Secrets Engine is distributed in the hope
+ * that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU Lesser General
+ * Public License for more details.
  */
 
 package secretsengine
@@ -58,12 +60,13 @@ func secret(b *backend) *framework.Secret {
 
 // revokeSecret deletes all bindings, secrets and service accounts
 //associated with the generated identity
-func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) revokeSecret(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 
-	var serviceAccount *corev1.ServiceAccount
-	var clusterRoles []*rbacv1.ClusterRole
-	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	var roleBindings []*rbacv1.RoleBinding
+	var sa *corev1.ServiceAccount
+	var crs []*rbacv1.ClusterRole
+	var crbs []*rbacv1.ClusterRoleBinding
+	var rbs []*rbacv1.RoleBinding
 
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -75,40 +78,40 @@ func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *fra
 		return nil, err
 	}
 
-	if err = decodeSecretInternalData(req, keyServiceAccount, &serviceAccount); err != nil {
+	if err = decodeSecretInternalData(req, keyServiceAccount, &sa); err != nil {
 		return nil, err
 	}
-	if err = decodeSecretInternalData(req, keyClusterRoles, &clusterRoles); err != nil {
+	if err = decodeSecretInternalData(req, keyClusterRoles, &crs); err != nil {
 		return nil, err
 	}
-	if err = decodeSecretInternalData(req, keyClusterRoleBindings, &clusterRoleBindings); err != nil {
+	if err = decodeSecretInternalData(req, keyClusterRoleBindings, &crbs); err != nil {
 		return nil, err
 	}
-	if err = decodeSecretInternalData(req, keyRoleBindings, &roleBindings); err != nil {
+	if err = decodeSecretInternalData(req, keyRoleBindings, &rbs); err != nil {
 		return nil, err
 	}
 
-	for _, clusterRole := range clusterRoles {
-		b.Logger().Info(fmt.Sprintf("deleting clusterrole '%s'", clusterRole.Name))
-		if err = b.kubernetesService.DeleteClusterRole(ctx, clientSet, clusterRole); err != nil {
+	for _, cr := range crs {
+		b.Logger().Info(fmt.Sprintf("deleting clusterrole '%s'", cr.Name))
+		if err = b.kubernetesService.DeleteClusterRole(ctx, clientSet, cr); err != nil {
 			return nil, err
 		}
 	}
-	for _, clusterRoleBinding := range clusterRoleBindings {
-		b.Logger().Info(fmt.Sprintf("deleting clusterrolebinding '%s'", clusterRoleBinding.Name))
-		if err = b.kubernetesService.DeleteClusterRoleBinding(ctx, clientSet, clusterRoleBinding); err != nil {
+	for _, crb := range crbs {
+		b.Logger().Info(fmt.Sprintf("deleting clusterrolebinding '%s'", crb.Name))
+		if err = b.kubernetesService.DeleteClusterRoleBinding(ctx, clientSet, crb); err != nil {
 			return nil, err
 		}
 	}
-	for _, roleBinding := range roleBindings {
-		b.Logger().Info(fmt.Sprintf("deleting rolebinding '%s' in '%s' namespace", roleBinding.Name, roleBinding.Namespace))
-		if err = b.kubernetesService.DeleteRoleBinding(ctx, clientSet, roleBinding); err != nil {
+	for _, rb := range rbs {
+		b.Logger().Info(fmt.Sprintf("deleting rolebinding '%s' in '%s' namespace", rb.Name, rb.Namespace))
+		if err = b.kubernetesService.DeleteRoleBinding(ctx, clientSet, rb); err != nil {
 			return nil, err
 		}
 	}
-	if serviceAccount.Name != "" {
-		b.Logger().Info(fmt.Sprintf("deleting serviceaccount '%s' in '%s' namespace", serviceAccount.Name, serviceAccount.Namespace))
-		if err = b.kubernetesService.DeleteServiceAccount(ctx, clientSet, serviceAccount); err != nil {
+	if sa.Name != "" {
+		b.Logger().Info(fmt.Sprintf("deleting serviceaccount '%s' in '%s' namespace", sa.Name, sa.Namespace))
+		if err = b.kubernetesService.DeleteServiceAccount(ctx, clientSet, sa); err != nil {
 			return nil, err
 		}
 	}

@@ -1,20 +1,22 @@
 /*
- * Vault Kubernetes Secrets Engine is a plugin for
- * generating dynamic kubernetes credentials with
- * Hashicorp Vault
+ * Vault Kubernetes Secrets Engine is a
+ * Hashicorp Vault plugin for generating
+ * dynamic kubernetes credentials.
  *
  * Contact: pedro.tonini@hotmail.com
  *
- * Vault Kubernetes Secrets Engine is free software; you can
- * redistribute it and/or modify it under the terms of the
- * GNU Lesser General Public License as published by the Free
- * Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
+ * Vault Kubernetes Secrets Engine is free software;
+ * you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Vault Kubernetes Secrets Engine is distributed in the hope that
- * it will be useful, but WITHOUT ANY WARRANTY; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU Lesser General Public License for more details.
+ * Vault Kubernetes Secrets Engine is distributed in the hope
+ * that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU Lesser General
+ * Public License for more details.
  */
 
 package secretsengine
@@ -64,8 +66,9 @@ func pathConfig(b *backend) *framework.Path {
 		Pattern: configPath,
 		Fields: map[string]*framework.FieldSchema{
 			keyToken: {
-				Type:        framework.TypeString,
-				Description: "Token for the service account used to create and remove credentials in the Kubernetes Cluster",
+				Type: framework.TypeString,
+				Description: "Token for the service account used to create and remove credentials in the " +
+					"Kubernetes Cluster",
 			},
 			keyClientCert: {
 				Type:        framework.TypeString,
@@ -91,14 +94,16 @@ func pathConfig(b *backend) *framework.Path {
 				Default:     defaultServiceAccountNs,
 			},
 			keyDefaultTTL: {
-				Type:        framework.TypeDurationSecond,
-				Description: "Default time to live for when a user does not provide a TTL. If not set or set to 0, will use system default.",
-				Default:     "0",
+				Type: framework.TypeDurationSecond,
+				Description: "Default time to live for when a user does not provide a TTL. If not set or set to 0, " +
+					"will use system default.",
+				Default: "0",
 			},
 			keyDefaultMaxTTL: {
-				Type:        framework.TypeDurationSecond,
-				Description: "Time to live for the credentials returned. If not set or set to 0, will use system default.",
-				Default:     "0",
+				Type: framework.TypeDurationSecond,
+				Description: "Time to live for the credentials returned. If not set or set to 0, will use system " +
+					"default.",
+				Default: "0",
 			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -125,7 +130,8 @@ func pathConfig(b *backend) *framework.Path {
 }
 
 // pathConfigWrite saves the configuration on the storage backend
-func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response,
+	error) {
 
 	config := Config{
 		Token:                          d.Get(keyToken).(string),
@@ -150,7 +156,8 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 }
 
 // pathConfigRead retrieves the configuration on the storage backend
-func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response,
+	error) {
 	if config, err := getConfig(ctx, req.Storage); err != nil {
 		return nil, err
 	} else {
@@ -169,7 +176,8 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *f
 }
 
 // pathConfigDelete removes the configuration on the storage backend
-func (b *backend) pathConfigDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathConfigDelete(ctx context.Context, req *logical.Request,
+	d *framework.FieldData) (*logical.Response, error) {
 	if err := req.Storage.Delete(ctx, configPath); err != nil {
 		return nil, err
 	}
