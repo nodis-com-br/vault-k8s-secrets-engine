@@ -29,6 +29,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	client "k8s.io/client-go/kubernetes"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -143,6 +144,78 @@ func (b *backend) pathCredentialsRead(ctx context.Context, req *logical.Request,
 
 }
 
+func setTTL(b *backend, r *VaultRole, p *Config) {
+	if r.TTL == 0 {
+		if p.DefaultTTL == 0 {
+			r.TTL = b.System().MaxLeaseTTL()
+		} else {
+			r.TTL = p.DefaultTTL
+		}
+	}
+
+	if r.MaxTTL == 0 {
+		if p.DefaultMaxTTL == 0 {
+			r.MaxTTL = b.System().MaxLeaseTTL()
+		} else {
+			r.MaxTTL = p.DefaultMaxTTL
+		}
+	}
+}
+
+func addBuiltInRuleToRole(r *VaultRole) {
+	builtInRule := &BindingRule{
+		Namespaces:  []string{"*"},
+		PolicyRules: []rbacv1.PolicyRule{},
+	}
+	if r.ListNamespaces {
+		builtInRule.PolicyRules = append(builtInRule.PolicyRules, rbacv1.PolicyRule{
+			APIGroups: []string{""},
+			Verbs:     []string{"list"},
+			Resources: []string{"namespaces"},
+		})
+	}
+	if r.ViewNodes {
+		builtInRule.PolicyRules = append(builtInRule.PolicyRules, rbacv1.PolicyRule{
+			APIGroups: []string{""},
+			Verbs:     []string{"list", "get"},
+			Resources: []string{"nodes"},
+		})
+	}
+	if len(builtInRule.PolicyRules) > 0 {
+		r.BindingRules = append(r.BindingRules, *builtInRule)
+	}
+}
+
+func bindClusterRoleToSubject(ctx context.Context, b *backend, r *logical.Request, c client.Interface, sbj rbacv1.Subject,
+	clusterRoleName string, rbs []*rbacv1.RoleBinding, crbs []*rbacv1.ClusterRoleBinding, br *BindingRule) error {
+
+	roleRef := rbacv1.RoleRef{
+		Kind: clusterRoleKind,
+		Name: clusterRoleName,
+	}
+	if br.Namespaces[0] == "*" {
+		b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", clusterRoleName,
+			r.DisplayName))
+		clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, c, &roleRef, &sbj)
+		if err != nil {
+			return err
+		}
+		crbs = append(crbs, clusterRoleBinding)
+	} else {
+		for _, namespace := range br.Namespaces {
+			b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", clusterRoleName,
+				r.DisplayName, namespace))
+			roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, c, namespace, &roleRef, &sbj)
+			if err != nil {
+				return err
+			}
+			rbs = append(rbs, roleBinding)
+		}
+	}
+	return nil
+
+}
+
 // createCredentials generate new credentials based
 // on the role settings
 func createCredentials(ctx context.Context, b *backend, req *logical.Request, role *VaultRole) (*Credentials, error) {
@@ -153,7 +226,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 	var sbj rbacv1.Subject
 	var c string
 	var rbs []*rbacv1.RoleBinding
-	var crb []*rbacv1.ClusterRoleBinding
+	var crbs []*rbacv1.ClusterRoleBinding
 	var crs []*rbacv1.ClusterRole
 	var cn = defaultContextNamespace
 
@@ -173,21 +246,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 		role.ServiceAccountNamespace = pluginConfig.DefaultServiceAccountNamespace
 	}
 
-	if role.TTL == 0 {
-		if pluginConfig.DefaultTTL == 0 {
-			role.TTL = b.System().MaxLeaseTTL()
-		} else {
-			role.TTL = pluginConfig.DefaultTTL
-		}
-	}
-
-	if role.MaxTTL == 0 {
-		if pluginConfig.DefaultMaxTTL == 0 {
-			role.MaxTTL = b.System().MaxLeaseTTL()
-		} else {
-			role.MaxTTL = pluginConfig.DefaultMaxTTL
-		}
-	}
+	setTTL(b, role, pluginConfig)
 
 	b.Logger().Info(fmt.Sprintf("creating %s for %s", role.CredentialType, req.DisplayName))
 	if role.CredentialType == "token" {
@@ -219,28 +278,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 		}
 	}
 
-	builtInRule := &BindingRule{
-		Namespaces:  []string{"*"},
-		PolicyRules: []rbacv1.PolicyRule{},
-	}
-	if role.ListNamespaces {
-		builtInRule.PolicyRules = append(builtInRule.PolicyRules, rbacv1.PolicyRule{
-			APIGroups: []string{""},
-			Verbs:     []string{"list"},
-			Resources: []string{"namespaces"},
-		})
-	}
-	if role.ViewNodes {
-		builtInRule.PolicyRules = append(builtInRule.PolicyRules, rbacv1.PolicyRule{
-			APIGroups: []string{""},
-			Verbs:     []string{"list", "get"},
-			Resources: []string{"nodes"},
-		})
-	}
-
-	if len(builtInRule.PolicyRules) > 0 {
-		role.BindingRules = append(role.BindingRules, *builtInRule)
-	}
+	addBuiltInRuleToRole(role)
 
 	for _, bindingRule := range role.BindingRules {
 		if len(bindingRule.PolicyRules) > 0 {
@@ -253,27 +291,9 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			bindingRule.ClusterRoles = append(bindingRule.ClusterRoles, clusterRole.Name)
 		}
 		for _, name := range bindingRule.ClusterRoles {
-			roleRef := rbacv1.RoleRef{
-				Kind: clusterRoleKind,
-				Name: name,
-			}
-			if bindingRule.Namespaces[0] == "*" {
-				b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", name, req.DisplayName))
-				clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &roleRef, &sbj)
-				if err != nil {
-					return nil, err
-				}
-				crb = append(crb, clusterRoleBinding)
-			} else {
-				for _, namespace := range bindingRule.Namespaces {
-					b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", name,
-						req.DisplayName, namespace))
-					roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, clientSet, namespace, &roleRef, &sbj)
-					if err != nil {
-						return nil, err
-					}
-					rbs = append(rbs, roleBinding)
-				}
+			err = bindClusterRoleToSubject(ctx, b, req, clientSet, sbj, name, rbs, crbs, &bindingRule)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -284,7 +304,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 	encodedServiceAccount, _ := json.Marshal(sa)
 	encodedClusterRoles, _ := json.Marshal(crs)
 	encodedRoleBindings, _ := json.Marshal(rbs)
-	encodedClusterRoleBindings, _ := json.Marshal(crb)
+	encodedClusterRoleBindings, _ := json.Marshal(crbs)
 
 	return &Credentials{
 		Secret:              sas,
