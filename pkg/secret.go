@@ -64,13 +64,8 @@ func secret(b *backend) *framework.Secret {
 
 // revokeSecret deletes all bindings, secrets and service accounts
 //associated with the generated identity
-func (b *backend) revokeSecret(ctx context.Context, req *logical.Request,
-	d *framework.FieldData) (*logical.Response, error) {
-
-	var sa *corev1.ServiceAccount
-	var crs []*rbacv1.ClusterRole
-	var crbs []*rbacv1.ClusterRoleBinding
-	var rbs []*rbacv1.RoleBinding
+func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response,
+	error) {
 
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -82,16 +77,8 @@ func (b *backend) revokeSecret(ctx context.Context, req *logical.Request,
 		return nil, err
 	}
 
-	if err = decodeSecretInternalData(req, keyServiceAccount, &sa); err != nil {
-		return nil, err
-	}
-	if err = decodeSecretInternalData(req, keyClusterRoles, &crs); err != nil {
-		return nil, err
-	}
-	if err = decodeSecretInternalData(req, keyClusterRoleBindings, &crbs); err != nil {
-		return nil, err
-	}
-	if err = decodeSecretInternalData(req, keyRoleBindings, &rbs); err != nil {
+	sa, crs, crbs, rbs, err := getExpiredResources(req)
+	if err != nil {
 		return nil, err
 	}
 
@@ -122,6 +109,30 @@ func (b *backend) revokeSecret(ctx context.Context, req *logical.Request,
 
 	return nil, nil
 
+}
+
+func getExpiredResources(req *logical.Request) (*corev1.ServiceAccount, []*rbacv1.ClusterRole,
+	[]*rbacv1.ClusterRoleBinding, []*rbacv1.RoleBinding, error) {
+
+	var sa *corev1.ServiceAccount
+	var crs []*rbacv1.ClusterRole
+	var crbs []*rbacv1.ClusterRoleBinding
+	var rbs []*rbacv1.RoleBinding
+
+	if err := decodeSecretInternalData(req, keyServiceAccount, &sa); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := decodeSecretInternalData(req, keyClusterRoles, &crs); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := decodeSecretInternalData(req, keyClusterRoleBindings, &crbs); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := decodeSecretInternalData(req, keyRoleBindings, &rbs); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return sa, crs, crbs, rbs, nil
 }
 
 // decodeSecretInternalData extracts and decodes json strings from
