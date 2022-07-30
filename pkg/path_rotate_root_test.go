@@ -22,7 +22,7 @@ func TestRotateCredentials(t *testing.T) {
 
 	t.Run("rotate root credentials (no bindings)", func(t *testing.T) {
 		_, err := b.pathRotateRootUpdate(ctx, &logical.Request{Storage: reqStorage}, &framework.FieldData{})
-		assert.EqualError(t, err, noBindingsForSubject)
+		assert.EqualError(t, err, errorNoBindingsForSubject)
 	})
 
 	objMeta := metav1.ObjectMeta{Name: getUniqueString(6)}
@@ -35,7 +35,7 @@ func TestRotateCredentials(t *testing.T) {
 	_, _ = testStorageCreate(ctx, b, reqStorage, configPath, configs[0])
 	t.Run("rotate root credentials (certificate error)", func(t *testing.T) {
 		_, err := b.pathRotateRootUpdate(ctx, &logical.Request{Storage: reqStorage}, &framework.FieldData{})
-		assert.EqualError(t, err, emptyClientCertificate)
+		assert.EqualError(t, err, errorEmptyClientCertificate)
 	})
 
 	ctx = context.WithValue(ctx, keyFakeResponse, true)

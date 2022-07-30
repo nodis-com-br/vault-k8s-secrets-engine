@@ -1,8 +1,7 @@
 /*
- * Vault Kubernetes Secrets Engine is a
- * Hashicorp Vault plugin for generating
- * dynamic kubernetes credentials.
- *
+ * Vault Kubernetes Secrets Engine
+ * Open source kubernetes credentials manager for Hashicorp Vault
+ * Copyright (c) 2022 Pedro Tonini
  * Contact: pedro.tonini@hotmail.com
  *
  * Vault Kubernetes Secrets Engine is free software;
@@ -151,7 +150,7 @@ func (k *KubernetesService) SignCertificateRequest(ctx context.Context, cs certC
 			_, cert := createKeyAndSelfSignedCertificate("test", testRSAKeyLength)
 			csr.Status.Certificate = []byte(cert)
 		} else {
-			return "", fmt.Errorf(emptyClientCertificate)
+			return "", fmt.Errorf(errorEmptyClientCertificate)
 		}
 	}
 	return string(csr.Status.Certificate), nil

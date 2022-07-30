@@ -1,8 +1,7 @@
 /*
- * Vault Kubernetes Secrets Engine is a
- * Hashicorp Vault plugin for generating
- * dynamic kubernetes credentials.
- *
+ * Vault Kubernetes Secrets Engine
+ * Open source kubernetes credentials manager for Hashicorp Vault
+ * Copyright (c) 2022 Pedro Tonini
  * Contact: pedro.tonini@hotmail.com
  *
  * Vault Kubernetes Secrets Engine is free software;
@@ -18,7 +17,6 @@
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General
  * Public License for more details.
  */
-
 package main
 
 import (

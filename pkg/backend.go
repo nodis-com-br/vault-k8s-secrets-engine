@@ -1,8 +1,7 @@
 /*
- * Vault Kubernetes Secrets Engine is a
- * Hashicorp Vault plugin for generating
- * dynamic kubernetes credentials.
- *
+ * Vault Kubernetes Secrets Engine
+ * Open source kubernetes credentials manager for Hashicorp Vault
+ * Copyright (c) 2022 Pedro Tonini
  * Contact: pedro.tonini@hotmail.com
  *
  * Vault Kubernetes Secrets Engine is free software;
@@ -122,16 +121,16 @@ const (
 
 // Error messages
 const (
-	emptyConfiguration     = "configuration is empty"
-	missingCredentials     = "no credentials provided"
-	tooManyCredentials     = "either token or certificates must be provided"
-	missingCACert          = "ca_cert can not be empty"
-	noBindingsForSubject   = "no bindings found for current subject"
-	emptyClientCertificate = "client certificate is empty"
-	emptyBindingRules      = "binding rules list cannot be empty"
-	missingRulesAndRoles   = "cluster roles or policy rules must be provided"
-	emptyNamespaceList     = "namespace list cannot be empty"
-	invalidTTLs            = "ttl cannot be greater than max_ttl"
+	errorEmptyConfiguration     = "configuration is empty"
+	errorMissingCredentials     = "no credentials provided"
+	errorTooManyCredentials     = "either token or certificates must be provided"
+	errorMissingCACert          = "ca_cert can not be empty"
+	errorNoBindingsForSubject   = "no bindings found for current subject"
+	errorEmptyClientCertificate = "client certificate is empty"
+	errorEmptyBindingRules      = "binding rules list cannot be empty"
+	errorMissingRulesAndRoles   = "cluster roles or policy rules must be provided"
+	errorEmptyNamespaceList     = "namespace list cannot be empty"
+	errorInvalidTTLs            = "ttl cannot be greater than max_ttl"
 )
 
 type backend struct {

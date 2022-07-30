@@ -13,7 +13,7 @@ func TestConfig(t *testing.T) {
 
 	t.Run("read empty config", func(t *testing.T) {
 		_, err := testStorageRead(ctx, b, reqStorage, configPath, nil, nil)
-		assert.EqualError(t, err, emptyConfiguration)
+		assert.EqualError(t, err, errorEmptyConfiguration)
 	})
 
 	t.Run("create config with missing credentials", func(t *testing.T) {
@@ -21,7 +21,7 @@ func TestConfig(t *testing.T) {
 			keyHost:   "https://passargada:443",
 			keyCACert: `CA CERTIFICATE`,
 		})
-		assert.EqualError(t, err, missingCredentials)
+		assert.EqualError(t, err, errorMissingCredentials)
 	})
 
 	t.Run("create config with too many credentials", func(t *testing.T) {
@@ -32,7 +32,7 @@ func TestConfig(t *testing.T) {
 			keyClientKey:  "CLIENT KEY",
 			keyToken:      "TOKEN",
 		})
-		assert.EqualError(t, err, tooManyCredentials)
+		assert.EqualError(t, err, errorTooManyCredentials)
 	})
 
 	t.Run("create config missing ca certificate", func(t *testing.T) {
@@ -41,7 +41,7 @@ func TestConfig(t *testing.T) {
 			keyClientCert: "CLIENT CERT",
 			keyClientKey:  "CLIENT KEY",
 		})
-		assert.EqualError(t, err, missingCACert)
+		assert.EqualError(t, err, errorMissingCACert)
 	})
 
 	t.Run("create config", func(t *testing.T) {
