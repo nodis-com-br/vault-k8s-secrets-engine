@@ -23,6 +23,7 @@ package secretsengine
 import (
 	"context"
 	"fmt"
+	client "k8s.io/client-go/kubernetes"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -54,7 +55,6 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 
 	var es int32
 	var c string
-	var csn string
 
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
@@ -67,19 +67,9 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 
-	if pluginConfig.Token != "" {
-		token, _ := jwt.Parse(pluginConfig.Token, nil)
-		csn = token.Claims.(jwt.MapClaims)[tokenServiceAccountNameClaim].(string)
-	} else {
-		clientCert, _ := parseCertificate(pluginConfig.ClientCert)
-		csn = clientCert.Subject.CommonName
-	}
-
-	crbs, _ := b.kubernetesService.GetSubjectClusterRoleBindings(ctx, clientSet, csn)
-	rbs, _ := b.kubernetesService.GetSubjectRoleBindings(ctx, clientSet, csn)
-
-	if len(crbs)+len(rbs) == 0 {
-		return nil, fmt.Errorf(errorNoBindingsForSubject)
+	crbs, rbs, err := getSubjectBindings(ctx, b, clientSet, pluginConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	nsn := resourceNamePrefix + getUniqueString(6)
@@ -93,20 +83,9 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 
-	for _, crb := range crbs {
-		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'",
-			crb.RoleRef.Name, sbj.Name))
-		_, err = b.kubernetesService.CreateClusterRoleBinding(ctx, clientSet, &crb.RoleRef, &sbj)
-		if err != nil {
-			return nil, err
-		}
-	}
-	for _, rb := range rbs {
-		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", rb.RoleRef.Name, sbj.Name))
-		_, err = b.kubernetesService.CreateRoleBinding(ctx, clientSet, rb.Namespace, &rb.RoleRef, &sbj)
-		if err != nil {
-			return nil, err
-		}
+	err = createBindingsForNewSubject(ctx, b, clientSet, sbj, crbs, rbs)
+	if err != nil {
+		return nil, err
 	}
 
 	newConfig := pluginConfig
@@ -122,19 +101,71 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 
+	err = deleteBindingsForOldSubject(ctx, b, clientSet, crbs, rbs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &logical.Response{}, nil
+}
+
+func getSubjectBindings(ctx context.Context, b *backend, c client.Interface, p *Config) ([]rbacv1.ClusterRoleBinding,
+	[]rbacv1.RoleBinding, error) {
+
+	var n string
+
+	if p.Token != "" {
+		token, _ := jwt.Parse(p.Token, nil)
+		n = token.Claims.(jwt.MapClaims)[tokenServiceAccountNameClaim].(string)
+	} else {
+		clientCert, _ := parseCertificate(p.ClientCert)
+		n = clientCert.Subject.CommonName
+	}
+
+	crbs, _ := b.kubernetesService.GetSubjectClusterRoleBindings(ctx, c, n)
+	rbs, _ := b.kubernetesService.GetSubjectRoleBindings(ctx, c, n)
+
+	if len(crbs)+len(rbs) == 0 {
+		return nil, nil, fmt.Errorf(errorNoBindingsForSubject)
+	}
+	return crbs, rbs, nil
+}
+
+func createBindingsForNewSubject(ctx context.Context, b *backend, c client.Interface, sbj rbacv1.Subject,
+	crbs []rbacv1.ClusterRoleBinding, rbs []rbacv1.RoleBinding) error {
+	for _, crb := range crbs {
+		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", crb.RoleRef.Name,
+			sbj.Name))
+		_, err := b.kubernetesService.CreateClusterRoleBinding(ctx, c, &crb.RoleRef, &sbj)
+		if err != nil {
+			return err
+		}
+	}
+	for _, rb := range rbs {
+		b.Logger().Info(fmt.Sprintf("creating cluster role binding to '%s' for '%s'", rb.RoleRef.Name, sbj.Name))
+		_, err := b.kubernetesService.CreateRoleBinding(ctx, c, rb.Namespace, &rb.RoleRef, &sbj)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deleteBindingsForOldSubject(ctx context.Context, b *backend, c client.Interface, crbs []rbacv1.ClusterRoleBinding,
+	rbs []rbacv1.RoleBinding) error {
 	for _, crb := range crbs {
 		b.Logger().Info(fmt.Sprintf("deleting cluster role binding '%s'", crb.Name))
-		err = b.kubernetesService.DeleteClusterRoleBinding(ctx, clientSet, &crb)
+		err := b.kubernetesService.DeleteClusterRoleBinding(ctx, c, &crb)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	for _, rb := range rbs {
 		b.Logger().Info(fmt.Sprintf("deleting role binding '%s'", rb.Name))
-		err = b.kubernetesService.DeleteRoleBinding(ctx, clientSet, &rb)
+		err := b.kubernetesService.DeleteRoleBinding(ctx, c, &rb)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return &logical.Response{}, nil
+	return nil
 }
