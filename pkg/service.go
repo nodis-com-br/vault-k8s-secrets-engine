@@ -2,7 +2,7 @@
  * Vault Kubernetes Secrets Engine
  * Open source kubernetes credentials manager for Hashicorp Vault
  * Copyright (c) 2022 Pedro Tonini
- * Contact: pedro.tonini@hotmail.com
+ * mailto:pedro DOT tonini AT hotmail DOT com
  *
  * Vault Kubernetes Secrets Engine is free software;
  * you can redistribute it and/or modify it under
