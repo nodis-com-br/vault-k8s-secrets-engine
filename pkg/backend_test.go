@@ -89,7 +89,7 @@ func init() {
 			Value: map[string]interface{}{
 				keyBindingRules: `[]`,
 			},
-			Error: emptyBindingRules,
+			Error: errorEmptyBindingRules,
 		},
 		{
 			Name: "invalid_json",
@@ -103,14 +103,14 @@ func init() {
 			Value: map[string]interface{}{
 				keyBindingRules: `[{"namespaces": ["default"]}]`,
 			},
-			Error: missingRulesAndRoles,
+			Error: errorMissingRulesAndRoles,
 		},
 		{
 			Name: "empty_namespace_list",
 			Value: map[string]interface{}{
 				keyBindingRules: `[{}]`,
 			},
-			Error: emptyNamespaceList,
+			Error: errorEmptyNamespaceList,
 		},
 		{
 			Name: "invalid_ttls",
@@ -118,7 +118,7 @@ func init() {
 				keyTTL:    1000,
 				keyMaxTTL: 100,
 			},
-			Error: invalidTTLs,
+			Error: errorInvalidTTLs,
 		},
 	}
 }

@@ -47,15 +47,15 @@ type Config struct {
 func (c *Config) Validate() error {
 
 	if c.Token == "" && c.ClientCert == "" && c.ClientKey == "" {
-		return fmt.Errorf(missingCredentials)
+		return fmt.Errorf(errorMissingCredentials)
 	}
 
 	if c.Token != "" && (c.ClientCert != "" || c.ClientKey != "") {
-		return fmt.Errorf(tooManyCredentials)
+		return fmt.Errorf(errorTooManyCredentials)
 	}
 
 	if c.CACert == "" {
-		return fmt.Errorf(missingCACert)
+		return fmt.Errorf(errorMissingCACert)
 	}
 
 	return nil
@@ -193,7 +193,7 @@ func getConfig(ctx context.Context, s logical.Storage) (*Config, error) {
 		return nil, err
 	}
 	if raw == nil {
-		return nil, fmt.Errorf(emptyConfiguration)
+		return nil, fmt.Errorf(errorEmptyConfiguration)
 	}
 	conf := &Config{}
 	_ = json.Unmarshal(raw.Value, conf)

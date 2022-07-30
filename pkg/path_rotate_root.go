@@ -80,7 +80,7 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 	rbs, _ := b.kubernetesService.GetSubjectRoleBindings(ctx, clientSet, csn)
 
 	if len(crbs)+len(rbs) == 0 {
-		return nil, fmt.Errorf(noBindingsForSubject)
+		return nil, fmt.Errorf(errorNoBindingsForSubject)
 	}
 
 	nsn := resourceNamePrefix + getUniqueString(6)

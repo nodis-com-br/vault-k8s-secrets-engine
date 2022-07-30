@@ -151,7 +151,7 @@ func (k *KubernetesService) SignCertificateRequest(ctx context.Context, cs certC
 			_, cert := createKeyAndSelfSignedCertificate("test", testRSAKeyLength)
 			csr.Status.Certificate = []byte(cert)
 		} else {
-			return "", fmt.Errorf(emptyClientCertificate)
+			return "", fmt.Errorf(errorEmptyClientCertificate)
 		}
 	}
 	return string(csr.Status.Certificate), nil

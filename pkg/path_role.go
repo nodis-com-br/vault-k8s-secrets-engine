@@ -71,19 +71,19 @@ func (r *VaultRole) toResponseData() map[string]interface{} {
 func (r *VaultRole) Validate() error {
 
 	if r.MaxTTL != 0 && r.TTL > r.MaxTTL {
-		return fmt.Errorf(invalidTTLs)
+		return fmt.Errorf(errorInvalidTTLs)
 	}
 
 	if len(r.BindingRules) == 0 {
-		return fmt.Errorf(emptyBindingRules)
+		return fmt.Errorf(errorEmptyBindingRules)
 	}
 
 	for i, _ := range r.BindingRules {
 		if len(r.BindingRules[i].Namespaces) == 0 {
-			return fmt.Errorf(emptyNamespaceList)
+			return fmt.Errorf(errorEmptyNamespaceList)
 		}
 		if len(r.BindingRules[i].ClusterRoles) == 0 && len(r.BindingRules[i].PolicyRules) == 0 {
-			return fmt.Errorf(missingRulesAndRoles)
+			return fmt.Errorf(errorMissingRulesAndRoles)
 		}
 	}
 	return nil
