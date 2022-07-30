@@ -186,8 +186,13 @@ func addBuiltInRuleToRole(r *VaultRole) {
 	}
 }
 
-func bindClusterRoleToSubject(ctx context.Context, b *backend, r *logical.Request, c client.Interface, sbj rbacv1.Subject,
-	clusterRoleName string, rbs []*rbacv1.RoleBinding, crbs []*rbacv1.ClusterRoleBinding, br *BindingRule) error {
+func bindClusterRoleToSubject(ctx context.Context, b *backend, r *logical.Request, c client.Interface,
+	sbj rbacv1.Subject, clusterRoleName string, br *BindingRule) (*rbacv1.ClusterRoleBinding, []*rbacv1.RoleBinding,
+	error) {
+
+	var err error
+	var crb *rbacv1.ClusterRoleBinding
+	var rbs []*rbacv1.RoleBinding
 
 	roleRef := rbacv1.RoleRef{
 		Kind: clusterRoleKind,
@@ -196,23 +201,23 @@ func bindClusterRoleToSubject(ctx context.Context, b *backend, r *logical.Reques
 	if br.Namespaces[0] == "*" {
 		b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", clusterRoleName,
 			r.DisplayName))
-		clusterRoleBinding, err := b.kubernetesService.CreateClusterRoleBinding(ctx, c, &roleRef, &sbj)
+		crb, err = b.kubernetesService.CreateClusterRoleBinding(ctx, c, &roleRef, &sbj)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
-		crbs = append(crbs, clusterRoleBinding)
+
 	} else {
 		for _, namespace := range br.Namespaces {
 			b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", clusterRoleName,
 				r.DisplayName, namespace))
 			roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, c, namespace, &roleRef, &sbj)
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 			rbs = append(rbs, roleBinding)
 		}
 	}
-	return nil
+	return crb, rbs, nil
 
 }
 
@@ -291,10 +296,18 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			bindingRule.ClusterRoles = append(bindingRule.ClusterRoles, clusterRole.Name)
 		}
 		for _, name := range bindingRule.ClusterRoles {
-			err = bindClusterRoleToSubject(ctx, b, req, clientSet, sbj, name, rbs, crbs, &bindingRule)
+
+			crb, rrbs, err := bindClusterRoleToSubject(ctx, b, req, clientSet, sbj, name, &bindingRule)
 			if err != nil {
 				return nil, err
 			}
+			if crb != nil {
+				crbs = append(crbs, crb)
+			}
+			for _, rb := range rrbs {
+				rbs = append(rbs, rb)
+			}
+
 		}
 	}
 
