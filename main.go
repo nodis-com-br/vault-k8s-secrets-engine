@@ -1,5 +1,5 @@
 /*
- * Vault Kubernetes Secrets Engine, open source software quality management tool.
+ * Vault Kubernetes Secrets Engine, open source credentials management plugin.
  * Copyright (C) 2022 Pedro Tonini
  * mailto:pedro DOT tonini AT hotmail DOT com
  *
