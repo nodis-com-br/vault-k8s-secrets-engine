@@ -296,13 +296,8 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			if err != nil {
 				return nil, err
 			}
-			if crb != nil {
-				crbs = append(crbs, crb)
-			}
-			for _, rb := range rrbs {
-				rbs = append(rbs, rb)
-			}
-
+			crbs = append(crbs, crb)
+			rbs = append(rbs, rrbs...)
 		}
 	}
 
