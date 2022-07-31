@@ -24,11 +24,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	client "k8s.io/client-go/kubernetes"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	client "k8s.io/client-go/kubernetes"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -181,37 +181,61 @@ func addBuiltInRuleToRole(r *VaultRole) {
 	}
 }
 
-func bindClusterRoleToSubject(ctx context.Context, b *backend, r *logical.Request, c client.Interface,
-	sbj rbacv1.Subject, clusterRoleName string, br *BindingRule) (*rbacv1.ClusterRoleBinding, []*rbacv1.RoleBinding,
-	error) {
+func createClusterRoles(ctx context.Context, b *backend, r *logical.Request, c client.Interface,
+	br *BindingRule) ([]*rbacv1.ClusterRole, error) {
+
+	var crs []*rbacv1.ClusterRole
+
+	if len(br.PolicyRules) > 0 {
+		b.Logger().Info(fmt.Sprintf("creating clusterrole for %s", r.DisplayName))
+		clusterRole, err := b.kubernetesService.CreateClusterRole(ctx, c, br.PolicyRules)
+		if err != nil {
+			return nil, err
+		}
+		crs = append(crs, clusterRole)
+		br.ClusterRoles = append(br.ClusterRoles, clusterRole.Name)
+	}
+
+	return crs, nil
+
+}
+
+func bindClusterRolesToSubject(ctx context.Context, b *backend, r *logical.Request, c client.Interface,
+	sbj rbacv1.Subject, br *BindingRule) (*rbacv1.ClusterRoleBinding, []*rbacv1.RoleBinding, error) {
 
 	var err error
 	var crb *rbacv1.ClusterRoleBinding
 	var rbs []*rbacv1.RoleBinding
 
-	roleRef := rbacv1.RoleRef{
-		Kind: clusterRoleKind,
-		Name: clusterRoleName,
-	}
-	if br.Namespaces[0] == "*" {
-		b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", clusterRoleName,
-			r.DisplayName))
-		crb, err = b.kubernetesService.CreateClusterRoleBinding(ctx, c, &roleRef, &sbj)
-		if err != nil {
-			return nil, nil, err
+	for _, name := range br.ClusterRoles {
+
+		roleRef := rbacv1.RoleRef{
+			Kind: clusterRoleKind,
+			Name: name,
 		}
 
-	} else {
-		for _, namespace := range br.Namespaces {
-			b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", clusterRoleName,
-				r.DisplayName, namespace))
-			roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, c, namespace, &roleRef, &sbj)
+		if br.Namespaces[0] == "*" {
+			b.Logger().Info(fmt.Sprintf("creating clusterrolebinding to '%s' for %s", name,
+				r.DisplayName))
+			crb, err = b.kubernetesService.CreateClusterRoleBinding(ctx, c, &roleRef, &sbj)
 			if err != nil {
 				return nil, nil, err
 			}
-			rbs = append(rbs, roleBinding)
+
+		} else {
+			for _, namespace := range br.Namespaces {
+				b.Logger().Info(fmt.Sprintf("creating rolebinding to '%s' for %s in '%s' namespace", name,
+					r.DisplayName, namespace))
+				roleBinding, err := b.kubernetesService.CreateRoleBinding(ctx, c, namespace, &roleRef, &sbj)
+				if err != nil {
+					return nil, nil, err
+				}
+				rbs = append(rbs, roleBinding)
+			}
 		}
+
 	}
+
 	return crb, rbs, nil
 
 }
@@ -228,7 +252,7 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 	var rbs []*rbacv1.RoleBinding
 	var crbs []*rbacv1.ClusterRoleBinding
 	var crs []*rbacv1.ClusterRole
-	var cn = defaultContextNamespace
+	var ns = defaultContextNamespace
 
 	// reload plugin config on every call to prevent stale config
 	pluginConfig, err := getConfig(ctx, req.Storage)
@@ -281,28 +305,21 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 	addBuiltInRuleToRole(role)
 
 	for _, bindingRule := range role.BindingRules {
-		if len(bindingRule.PolicyRules) > 0 {
-			b.Logger().Info(fmt.Sprintf("creating clusterrole for %s", req.DisplayName))
-			clusterRole, err := b.kubernetesService.CreateClusterRole(ctx, clientSet, bindingRule.PolicyRules)
-			if err != nil {
-				return nil, err
-			}
-			crs = append(crs, clusterRole)
-			bindingRule.ClusterRoles = append(bindingRule.ClusterRoles, clusterRole.Name)
+		_crs, _ := createClusterRoles(ctx, b, req, clientSet, &bindingRule)
+		if err != nil {
+			return nil, err
 		}
-		for _, name := range bindingRule.ClusterRoles {
-
-			crb, rrbs, err := bindClusterRoleToSubject(ctx, b, req, clientSet, sbj, name, &bindingRule)
-			if err != nil {
-				return nil, err
-			}
-			crbs = append(crbs, crb)
-			rbs = append(rbs, rrbs...)
+		crb, _rbs, err := bindClusterRolesToSubject(ctx, b, req, clientSet, sbj, &bindingRule)
+		if err != nil {
+			return nil, err
 		}
+		crs = append(crs, _crs...)
+		crbs = append(crbs, crb)
+		rbs = append(rbs, _rbs...)
 	}
 
 	b.Logger().Info(fmt.Sprintf("creating kube config for '%s'", req.DisplayName))
-	kubeConfig := createKubeConfig(pluginConfig.Host, pluginConfig.CACert, cn, sa, sas, uc)
+	kubeConfig := createKubeConfig(pluginConfig.Host, pluginConfig.CACert, ns, sa, sas, uc)
 
 	encodedServiceAccount, _ := json.Marshal(sa)
 	encodedClusterRoles, _ := json.Marshal(crs)
