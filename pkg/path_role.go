@@ -46,8 +46,8 @@ type VaultRole struct {
 
 // BindingRule contains the rbac rules for the created credentials
 type BindingRule struct {
-	Namespaces   []string          `json:"namespaces"`
 	ClusterRoles []string          `json:"cluster_roles"`
+	Namespaces   []string          `json:"namespaces"`
 	PolicyRules  []rbac.PolicyRule `json:"rules"`
 }
 

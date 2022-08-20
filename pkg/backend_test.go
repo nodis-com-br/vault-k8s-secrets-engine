@@ -61,7 +61,7 @@ func init() {
 		{
 			Name: "admin",
 			Value: map[string]interface{}{
-				keyBindingRules:     `[{"namespaces":["*"],"cluster_roles":["cluster-admin"],"rules":null}]`,
+				keyBindingRules:     `[{"cluster_roles":["cluster-admin"],"namespaces":["*"],"rules":null}]`,
 				keyListNamespaces:   defaultListNamespaces,
 				keyViewNodes:        defaultViewNodes,
 				keyCredentialsType:  defaultCredentialsType,
@@ -73,7 +73,7 @@ func init() {
 		{
 			Name: "developer",
 			Value: map[string]interface{}{
-				keyBindingRules:     `[{"namespaces":["default"],"cluster_roles":["cluster-admin"],"rules":null},{"namespaces":["*"],"cluster_roles":["view"],"rules":null}]`,
+				keyBindingRules:     `[{"cluster_roles":["cluster-admin"],"namespaces":["default"],"rules":null},{"cluster_roles":["view"],"namespaces":["*"],"rules":null}]`,
 				keyListNamespaces:   true,
 				keyViewNodes:        true,
 				keyCredentialsType:  "token",

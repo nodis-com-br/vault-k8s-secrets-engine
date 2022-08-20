@@ -38,16 +38,12 @@ const (
 	defaultListNamespaces        = false
 	defaultViewNodes             = false
 	defaultRSAKeyLength          = 4096
-	testRSAKeyLength             = 512
 	defaultWaitTime              = 1
 	resourceNamePrefix           = "vault-"
 	tokenSecretNameSuffix        = "-token"
 	serviceAccountKind           = "ServiceAccount"
 	userKind                     = "User"
 	clusterRoleKind              = "ClusterRole"
-	keyFakeK8sClient             = "fake_client"
-	keyFakeK8sClientObjects      = "fake_client_objects"
-	keyFakeResponse              = "fake_response"
 	tokenServiceAccountNameClaim = "kubernetes.io/serviceaccount/service-account.name"
 	backendHelp                  = `
 The Vault dynamic credentials backend provides on-demand credentials 
@@ -131,6 +127,14 @@ const (
 	errorMissingRulesAndRoles   = "cluster roles or policy rules must be provided"
 	errorEmptyNamespaceList     = "namespace list cannot be empty"
 	errorInvalidTTLs            = "ttl cannot be greater than max_ttl"
+)
+
+// Test constants
+const (
+	testRSAKeyLength        = 512
+	keyFakeK8sClient        = "fake_client"
+	keyFakeK8sClientObjects = "fake_client_objects"
+	keyFakeResponse         = "fake_response"
 )
 
 type backend struct {
