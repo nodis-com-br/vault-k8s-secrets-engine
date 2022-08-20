@@ -77,7 +77,7 @@ func (r *VaultRole) Validate() error {
 		return fmt.Errorf(errorEmptyBindingRules)
 	}
 
-	for i, _ := range r.BindingRules {
+	for i := range r.BindingRules {
 		if len(r.BindingRules[i].Namespaces) == 0 {
 			return fmt.Errorf(errorEmptyNamespaceList)
 		}
@@ -168,6 +168,7 @@ func pathRole(b *backend) []*framework.Path {
 // a list of valid roles for the backend
 func (b *backend) pathRoleList(ctx context.Context, req *logical.Request,
 	d *framework.FieldData) (*logical.Response, error) {
+	_ = d
 	entries, err := req.Storage.List(ctx, req.Path)
 	if err != nil {
 		return nil, err
