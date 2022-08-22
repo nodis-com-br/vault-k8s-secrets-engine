@@ -293,8 +293,8 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 		}
 		uc = &UserCertificate{
 			Username:    sbjName,
-			Certificate: base64Encode(c),
-			PrivateKey:  base64Encode(key),
+			Certificate: c,
+			PrivateKey:  key,
 		}
 		sbj = rbacv1.Subject{
 			Kind: userKind,
@@ -356,8 +356,8 @@ func createKubeConfig(h string, ca string, ns string, sa *corev1.ServiceAccount,
 	}
 	if c != nil {
 		name = c.Username
-		certificate = c.Certificate
-		privateKey = c.PrivateKey
+		certificate = base64Encode(c.Certificate)
+		privateKey = base64Encode(c.PrivateKey)
 	}
 
 	return fmt.Sprintf(`---
