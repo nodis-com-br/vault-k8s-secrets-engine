@@ -314,8 +314,10 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			return nil, err
 		}
 		crs = append(crs, _crs...)
-		crbs = append(crbs, crb)
 		rbs = append(rbs, _rbs...)
+		if crb != nil {
+			crbs = append(crbs, crb)
+		}
 	}
 
 	b.Logger().Info(fmt.Sprintf("creating kube config for '%s'", req.DisplayName))
