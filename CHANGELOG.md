@@ -2,37 +2,7 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [2.2.0](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.11...v2.2.0) (2022-09-24)
-
-
-### Features
-
-* new workflow ([3d3b801](https://github.com/nodis-com-br/vault-k8s-secrets-engine/commit/3d3b801bf5d5812565cfbe6bd793d57390faaeec))
-
-### [2.1.11](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.10...v2.1.11) (2022-07-31)
-
-### [2.1.10](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.9...v2.1.10) (2022-07-31)
-
-### [2.1.9](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.8...v2.1.9) (2022-07-31)
-
-### [2.1.8](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.7...v2.1.8) (2022-07-31)
-
-### [2.1.7](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.6...v2.1.7) (2022-07-30)
-
-### [2.1.6](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.5...v2.1.6) (2022-07-30)
-
-### [2.1.5](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.4...v2.1.5) (2022-07-30)
-
-### [2.1.4](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.3...v2.1.4) (2022-07-28)
-
-### [2.1.3](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.2...v2.1.3) (2022-07-28)
-
-### [2.1.2](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.1...v2.1.2) (2022-07-28)
-
-### [2.1.1](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.0...v2.1.1) (2022-07-27)
-
 ## [2.1.0](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.0.7...v2.1.0) (2022-07-27)
-
 
 ### Features
 
