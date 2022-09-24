@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.1.1...v2.2.0) (2022-09-24)
+
+
+### Features
+
+* new workflow ([3d3b801](https://github.com/nodis-com-br/vault-k8s-secrets-engine/commit/3d3b801bf5d5812565cfbe6bd793d57390faaeec))
+
 ## [2.1.0](https://github.com/nodis-com-br/vault-k8s-secrets-engine/compare/v2.0.7...v2.1.0) (2022-07-27)
 
 ### Features
