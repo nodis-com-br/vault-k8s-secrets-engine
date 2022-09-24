@@ -44,8 +44,8 @@ jobs:
       release_created: ${{ needs.release_please.outputs.release_created }}
       tag_name: ${{ needs.release_please.outputs.tag_name }}
    
-  lint_code:
-    uses: ptonini/gha-workflows/.github/workflows/lint-code.yaml@main
+  code_linting:
+    uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
     if: needs.startup.outputs.housekeeping == 'true'
     needs:
       - startup
