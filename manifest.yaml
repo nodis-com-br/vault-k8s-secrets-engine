@@ -1,0 +1,4 @@
+go:
+  build_image: alpine
+  main_file: main.go
+
