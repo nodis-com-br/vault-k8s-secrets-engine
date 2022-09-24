@@ -1,4 +1,4 @@
 go:
-  build_image: alpine
+  builder_image: golang:alpine
   main_file: main.go
 
