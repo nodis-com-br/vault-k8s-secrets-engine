@@ -21,7 +21,7 @@ jobs:
     uses: ptonini/gha-workflows/.github/workflows/startup.yaml@main
     secrets:
       ORG_CONFIG: ${{ secrets.ORG_CONFIG }}
-   
+  
   unit_tests:
     uses: ptonini/gha-workflows/.github/workflows/unit-tests.yaml@main
     if: needs.startup.outputs.skip_tests == 'false'
@@ -43,7 +43,7 @@ jobs:
     with:
       release_created: ${{ needs.release_please.outputs.release_created }}
       tag_name: ${{ needs.release_please.outputs.tag_name }}
-   
+  
   code_linting:
     uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
     if: needs.startup.outputs.housekeeping == 'true'
