@@ -7,10 +7,6 @@ on:
       - main
       - legacy/*
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - closed
     branches:
       - master
       - main
