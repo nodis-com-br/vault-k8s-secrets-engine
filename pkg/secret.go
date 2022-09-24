@@ -61,7 +61,7 @@ func secret(b *backend) *framework.Secret {
 //associated with the generated identity
 func (b *backend) revokeSecret(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response,
 	error) {
-
+	_ = d
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err

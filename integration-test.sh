@@ -49,7 +49,7 @@ vault write kubernetes/config host="${KIND_HOST}" token="${KIND_TOKEN}" ca_cert=
 vault read kubernetes/config
 
 # Rotate root credentials. It will replace token for client certificates
-vault write -force kubernetes/rotate-root
+#vault write -force kubernetes/rotate-root
 
 # Sample binding rules
 BINDING_RULES01=$(cat <<EOF

@@ -157,6 +157,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 // pathConfigRead retrieves the configuration on the storage backend
 func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response,
 	error) {
+	_ = d
 	if config, err := getConfig(ctx, req.Storage); err != nil {
 		return nil, err
 	} else {
@@ -177,6 +178,7 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, d *f
 // pathConfigDelete removes the configuration on the storage backend
 func (b *backend) pathConfigDelete(ctx context.Context, req *logical.Request,
 	d *framework.FieldData) (*logical.Response, error) {
+	_ = d
 	if err := req.Storage.Delete(ctx, configPath); err != nil {
 		return nil, err
 	}

@@ -55,6 +55,7 @@ func (b *backend) pathRotateRootUpdate(ctx context.Context, req *logical.Request
 
 	var es int32
 	var c string
+	_ = data
 
 	pluginConfig, err := getConfig(ctx, req.Storage)
 	if err != nil {

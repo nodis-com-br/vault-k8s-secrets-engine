@@ -293,8 +293,8 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 		}
 		uc = &UserCertificate{
 			Username:    sbjName,
-			Certificate: base64Encode(c),
-			PrivateKey:  base64Encode(key),
+			Certificate: c,
+			PrivateKey:  key,
 		}
 		sbj = rbacv1.Subject{
 			Kind: userKind,
@@ -314,8 +314,10 @@ func createCredentials(ctx context.Context, b *backend, req *logical.Request, ro
 			return nil, err
 		}
 		crs = append(crs, _crs...)
-		crbs = append(crbs, crb)
 		rbs = append(rbs, _rbs...)
+		if crb != nil {
+			crbs = append(crbs, crb)
+		}
 	}
 
 	b.Logger().Info(fmt.Sprintf("creating kube config for '%s'", req.DisplayName))
@@ -356,8 +358,8 @@ func createKubeConfig(h string, ca string, ns string, sa *corev1.ServiceAccount,
 	}
 	if c != nil {
 		name = c.Username
-		certificate = c.Certificate
-		privateKey = c.PrivateKey
+		certificate = base64Encode(c.Certificate)
+		privateKey = base64Encode(c.PrivateKey)
 	}
 
 	return fmt.Sprintf(`---
