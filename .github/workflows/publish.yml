@@ -7,6 +7,10 @@ on:
       - main
       - legacy/*
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - closed
     branches:
       - master
       - main
@@ -17,17 +21,50 @@ jobs:
     uses: ptonini/gha-workflows/.github/workflows/release-please.yaml@main
     if: github.event_name == 'push'
   
-  start:
-    uses: ptonini/gha-workflows/.github/workflows/start.yaml@main
-    if: (!contains(github.event.pull_request.head.ref, 'release-please--'))
+  startup:
+    uses: ptonini/gha-workflows/.github/workflows/startup.yaml@main
     secrets:
       ORG_CONFIG: ${{ secrets.ORG_CONFIG }}
-   
+  
+  publish_candidate:
+    uses: ptonini/gha-workflows/.github/workflows/build-go-application.yaml@main
+    if: needs.startup.outputs.publish_candidate == 'true'
+    needs:
+      - startup
+  
+  #  approve_candidate:
+  #    uses: ptonini/gha-workflows/.github/workflows/retag-docker-image.yaml@main
+  #    if: needs.startup.outputs.approve_candidate == 'true'
+  #    needs:
+  #      - startup
+  #    with:
+  #      source_tag: ${{ format('pr{0}', github.event.pull_request.number) }}
+  #      tag: pr-approved
+  #
+  #  promote_candidate:
+  #    uses: ptonini/gha-workflows/.github/workflows/retag-docker-image.yaml@main
+  #    if: needs.startup.outputs.promote_candidate == 'true'
+  #    needs:
+  #      - startup
+  #    with:
+  #      source_tag: pr-approved
+  #      tag: ${{ needs.startup.outputs.release_version }}
+  #
+  #
+  #  publish_artifact:
+  #    uses: ptonini/gha-workflows/.github/workflows/build-go-application.yaml@main
+  #    needs:
+  #      - startup
+  #      - release_please
+  #    with:
+  #      release_created: ${{ needs.release_please.outputs.release_created }}
+  #      tag_name: ${{ needs.release_please.outputs.tag_name }}
+  
   unit_tests:
     uses: ptonini/gha-workflows/.github/workflows/unit-tests.yaml@main
-    if: needs.start.outputs.skip_tests == 'false'
+    if: needs.startup.outputs.skip_tests == 'false'
     needs:
-      - start
+      - startup
   quality_scan:
     uses: ptonini/gha-workflows/.github/workflows/sonarcloud.yaml@main
     needs:
@@ -36,22 +73,13 @@ jobs:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   
-  publish_artifact:
-    uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
+  code_linting:
+    uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
+    if: needs.startup.outputs.housekeeping == 'true'
     needs:
-      - start
-      - release_please
-    with:
-      release_created: ${{ needs.release_please.outputs.release_created }}
-      tag_name: ${{ needs.release_please.outputs.tag_name }}
-   
-  lint_code:
-    uses: ptonini/gha-workflows/.github/workflows/lint-code.yaml@main
-    if: needs.start.outputs.housekeeping == 'true'
-    needs:
-      - start
+      - startup
   security_leaks_scan:
     uses: ptonini/gha-workflows/.github/workflows/trufflehog.yaml@main
-    if: needs.start.outputs.housekeeping == 'true'
+    if: needs.startup.outputs.housekeeping == 'true'
     needs:
-      - start
+      - startup
