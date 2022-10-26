@@ -19,7 +19,8 @@ jobs:
   
   startup:
     uses: ptonini/gha-workflows/.github/workflows/startup.yaml@main
-    secrets: inherit
+    secrets:
+      ORG_CONFIG: ${{ secrets.ORG_CONFIG }}
   
   unit_tests:
     uses: ptonini/gha-workflows/.github/workflows/unit-tests.yaml@main
@@ -30,7 +31,9 @@ jobs:
     uses: ptonini/gha-workflows/.github/workflows/sonarcloud.yaml@main
     needs:
       - unit_tests
-    secrets: inherit
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   
   publish_artifact:
     uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
