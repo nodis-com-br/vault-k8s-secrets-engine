@@ -32,7 +32,6 @@ jobs:
     needs:
       - unit_tests
     secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   
   publish_artifact:
