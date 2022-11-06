@@ -22,18 +22,6 @@ jobs:
     secrets:
       ORG_CONFIG: ${{ secrets.ORG_CONFIG }}
   
-  unit_tests:
-    uses: ptonini/gha-workflows/.github/workflows/unit-tests.yaml@main
-    if: needs.startup.outputs.skip_tests == 'false'
-    needs:
-      - startup
-  quality_scan:
-    uses: ptonini/gha-workflows/.github/workflows/sonarcloud.yaml@main
-    needs:
-      - unit_tests
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  
   publish_artifact:
     uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
     needs:
@@ -43,6 +31,14 @@ jobs:
       release_created: ${{ needs.release_please.outputs.release_created }}
       tag_name: ${{ needs.release_please.outputs.tag_name }}
   
+  quality_scan:
+    uses: ptonini/gha-workflows/.github/workflows/quality-scan.yaml@main
+    if: needs.startup.outputs.skip_tests == 'false'
+    needs:
+      - startup
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   code_linting:
     uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
     if: needs.startup.outputs.housekeeping == 'true'
