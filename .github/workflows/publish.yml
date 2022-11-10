@@ -19,8 +19,6 @@ jobs:
   
   startup:
     uses: ptonini/gha-workflows/.github/workflows/startup.yaml@main
-    secrets:
-      ORG_CONFIG: ${{ secrets.ORG_CONFIG }}
   
   publish_artifact:
     uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
