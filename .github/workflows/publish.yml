@@ -30,7 +30,7 @@ jobs:
       tag_name: ${{ needs.release_please.outputs.tag_name }}
   
   quality_scan:
-    uses: ptonini/gha-workflows/.github/workflows/quality-scan.yaml@main
+    uses: ptonini/gha-workflows/.github/workflows/code-testing.yaml@main
     if: needs.startup.outputs.skip_tests == 'false'
     needs:
       - startup
