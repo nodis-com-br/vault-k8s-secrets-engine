@@ -17,13 +17,13 @@ jobs:
     uses: ptonini/gha-workflows/.github/workflows/release-please.yaml@main
     if: github.event_name == 'push'
   
-  startup:
-    uses: ptonini/gha-workflows/.github/workflows/startup.yaml@main
+  start:
+    uses: ptonini/gha-workflows/.github/workflows/start.yaml@main
   
   publish_artifact:
     uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
     needs:
-      - startup
+      - start
       - release_please
     with:
       release_created: ${{ needs.release_please.outputs.release_created }}
@@ -31,19 +31,19 @@ jobs:
   
   quality_scan:
     uses: ptonini/gha-workflows/.github/workflows/code-testing.yaml@main
-    if: needs.startup.outputs.skip_tests == 'false'
+    if: needs.start.outputs.skip_tests == 'false'
     needs:
-      - startup
+      - start
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   code_linting:
     uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
-    if: needs.startup.outputs.housekeeping == 'true'
+    if: needs.start.outputs.housekeeping == 'true'
     needs:
-      - startup
+      - start
   security_leaks_scan:
     uses: ptonini/gha-workflows/.github/workflows/trufflehog.yaml@main
-    if: needs.startup.outputs.housekeeping == 'true'
+    if: needs.start.outputs.housekeeping == 'true'
     needs:
-      - startup
+      - start
