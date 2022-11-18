@@ -13,6 +13,18 @@ on:
       - legacy/*
 
 jobs:
+  
+  code_testing:
+    uses: ptonini/gha-workflows/.github/workflows/code-testing.yaml@main
+    if: github.event.action != 'closed' && github.event.head_commit.author.name != 'github-actions[bot]' && !contains(github.event.repository.topics, 'skip-testing')
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  code_linting:
+    uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
+    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action) && !contains(github.event.repository.topics, 'skip-linting')
+  security_scan:
+    uses: ptonini/gha-workflows/.github/workflows/trufflehog.yaml@main
+    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action)
   release_please:
     uses: ptonini/gha-workflows/.github/workflows/release-please.yaml@main
     if: github.event_name == 'push'
@@ -29,21 +41,3 @@ jobs:
       release_created: ${{ needs.release_please.outputs.release_created }}
       tag_name: ${{ needs.release_please.outputs.tag_name }}
   
-  quality_scan:
-    uses: ptonini/gha-workflows/.github/workflows/code-testing.yaml@main
-    if: needs.start.outputs.skip_tests == 'false'
-    needs:
-      - start
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  code_linting:
-    uses: ptonini/gha-workflows/.github/workflows/code-linting.yaml@main
-    if: needs.start.outputs.housekeeping == 'true'
-    needs:
-      - start
-  security_leaks_scan:
-    uses: ptonini/gha-workflows/.github/workflows/trufflehog.yaml@main
-    if: needs.start.outputs.housekeeping == 'true'
-    needs:
-      - start
