@@ -30,7 +30,7 @@ jobs:
     if: github.event_name == 'push'
   
   start:
-    uses: ptonini/gha-workflows/.github/workflows/start.yaml@main
+    uses: ptonini/gha-workflows/.github/workflows/read-manifests.yaml@main
   
   publish_artifact:
     uses: ptonini/gha-workflows/.github/workflows/publish-go-application.yaml@main
