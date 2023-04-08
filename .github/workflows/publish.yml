@@ -29,13 +29,9 @@ jobs:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/release-please.yaml@main
     if: github.event_name == 'push'
   
-  start:
-    uses: nodis-com-br/github-actions-workflows/.github/workflows/read-manifests.yaml@main
-  
   publish_artifact:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/publish-go-application.yaml@main
     needs:
-      - start
       - release_please
     with:
       release_created: ${{ needs.release_please.outputs.release_created }}
