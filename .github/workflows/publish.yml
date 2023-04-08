@@ -16,12 +16,12 @@ jobs:
   
   code_testing:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/code-testing.yaml@main
-    if: github.event.action != 'closed' && github.event.head_commit.author.name != 'github-actions[bot]' && !contains(github.event.repository.topics, 'skip-testing')
+    if: github.event.action != 'closed' && github.event.head_commit.author.name != 'github-actions[bot]' && vars.skip_testing != 'true'
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   code_linting:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/code-linting.yaml@main
-    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action) && !contains(github.event.repository.topics, 'skip-linting')
+    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action) && vars.skip_linting != 'true'
   security_scan:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/trufflehog.yaml@main
     if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action)
