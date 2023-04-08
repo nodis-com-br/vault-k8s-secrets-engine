@@ -25,16 +25,12 @@ jobs:
   security_scan:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/trufflehog.yaml@main
     if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action)
-  
   release_please:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/release-please.yaml@main
     if: github.event_name == 'push'
+
   publish_artifact:
     uses: nodis-com-br/github-actions-workflows/.github/workflows/publish-go-application.yaml@main
-    needs:
-      - release_please
-    with:
-      release_created: ${{ needs.release_please.outputs.release_created }}
-      tag_name: ${{ needs.release_please.outputs.tag_name }}
+    if: github.event_name == 'push' && contains(github.event.commits.*.author.name, 'github-actions[bot]')
       
     
