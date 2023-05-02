@@ -1,0 +1,36 @@
+name: publish
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - legacy/*
+  pull_request:
+    branches:
+      - master
+      - main
+      - legacy/*
+
+jobs:
+  
+  code_testing:
+    uses: nodis-com-br/github-actions-workflows/.github/workflows/code-testing.yaml@main
+    if: github.event.action != 'closed' && github.event.head_commit.author.name != 'github-actions[bot]' && vars.skip_testing != 'true'
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  code_linting:
+    uses: nodis-com-br/github-actions-workflows/.github/workflows/code-linting.yaml@main
+    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action) && vars.skip_linting != 'true'
+  security_scan:
+    uses: nodis-com-br/github-actions-workflows/.github/workflows/trufflehog.yaml@main
+    if: github.event_name == 'pull_request' && contains('opened synchronize', github.event.action)
+  release_please:
+    uses: nodis-com-br/github-actions-workflows/.github/workflows/release-please.yaml@main
+    if: github.event_name == 'push'
+
+  publish_artifact:
+    uses: nodis-com-br/github-actions-workflows/.github/workflows/publish-go-application.yaml@main
+    if: github.event_name == 'push' && contains(github.event.commits.*.author.name, 'github-actions[bot]')
+      
+    
